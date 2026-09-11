@@ -7,9 +7,9 @@ mech_levels = {}
 ## initialize levels
 mechs["grocshop"] = 0
 mechs["snakehunt"] = 0
-mechs["cashier"] = 0
-mechs["party"] = 0
-mechs["pizza"] = 0
+mechs["cashier"] = -1
+mechs["party"] = -1
+mechs["pizza"] = -1
 
 ## track money
 coins = {}
