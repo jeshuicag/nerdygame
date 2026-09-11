@@ -80,7 +80,7 @@ def shout_head(tail, head, mis_level, len):
     answer = ui.askhead(tail, head, mis_level, len)
     return answer
 
-# in case player jumps on or over snake, lose life and change dir
+# in case player jumps on or over snake, go back to original place or change dir
 def checkplace(place, head, tail):
     if (place <= head and place > tail) or (place >= head and place < tail):
         return 0
