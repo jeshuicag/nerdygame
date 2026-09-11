@@ -1,4 +1,6 @@
 
+import cointrade
+
 ## track where players are in each mechanic
 mech_levels = {}
 
@@ -16,3 +18,5 @@ coins["copper"] = 0
 coins["iron"] = 0
 coins["gold"] = 0
 coins["diamond"] = 0
+
+taskqueue = ["grocshop", "snakehunt"]
