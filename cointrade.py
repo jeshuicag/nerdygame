@@ -10,6 +10,8 @@ def coinTrade(curr, amount, add, mechlevel):
     extras = [0,0,0,0]
     if add:
         extras = amount
+    else:
+        ui.showGoal(amount, mechlevel)
 
     while (add and (sum(extras) != 0 or sum(curr_bank[1])!=0)) or (not add and extras != amount):
         ## updateDisplayCoins should return selected coins, bank state when player tries to do transfer, destination, and if a trade is being attempted
@@ -67,9 +69,11 @@ def coinTrade(curr, amount, add, mechlevel):
 
     if sum(curr_bank[1]) > 0:
         curr_bag = [x + y for x, y in zip(curr_bag, curr_bank[1])]
-        ui.updateDisplayCoins(curr_bag, extras, curr_bank, mechlevel)
+        curr_bank[1] = [0,0,0,0]
+        ui.bankToBag(curr_bag, curr_bank[1])
         
     ui.warn("You did it!")
+    ui.close(2000)
 
     return curr_bag
 
@@ -125,5 +129,5 @@ def tryTrade(bank, level):
     ui.warn("The trade center requires exact change")
     return temp_bank
             
-coinTrade([8,3,2,4], [3,1,0,1], True, 3)
+saved = coinTrade([0,1,0,0], [2,0,0,0], False, 1)
 

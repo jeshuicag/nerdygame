@@ -41,7 +41,6 @@ BANK_COLS = 5
 
 ICON_PX = 30
 TARGET_PX = 42
-WARN_MS = 3000
 
 BG = "#fdf6e3"
 AREA_BORDER = "#3b2f1e"
@@ -49,7 +48,7 @@ SECTION_BORDER = "#d9c9a3"
 TEXT = "#3b2f1e"
 SLOT_EMPTY_BORDER = "#d9c9a3"
 SELECTED_BORDER = "#f2a900"
-SELECTED_BG = "#fff3c4"
+SELECTED_BG = "#c543c4"
 TARGET_BORDER = "#3aa655"
 TARGET_BG = "#e3f5e6"
 WARN_FG = "#c0392b"
@@ -108,9 +107,13 @@ class CoinUI:
 
     # ------------------------------------------------------------- layout
     def _build(self):
+        self.goal_label = tk.Label(self.root, text="", bg=BG, fg=TEXT,
+                                   font=("Helvetica", 18, "bold"), height=1)
+        self.goal_label.pack(pady=(14, 0))
+
         self.warn_label = tk.Label(self.root, text="", bg=BG, fg=WARN_FG,
                                    font=("Helvetica", 16, "bold"), height=1)
-        self.warn_label.pack(pady=(10, 0))
+        self.warn_label.pack(pady=(4, 0))
 
         main = tk.Frame(self.root, bg=BG)
         main.pack(padx=20, pady=16)
@@ -213,16 +216,31 @@ class CoinUI:
                 self._destination if self._destination is not None else 2,
                 self._is_trade)
 
+    def showGoal(self, amount, mechlevel):
+        if self._closed:
+            return
+        parts = [f"{amount[t]} {COIN_NAMES[t]}" for t in range(mechlevel, -1, -1)]
+        text = "Return (" + ", ".join(parts) + ")" if parts else "Return (0)"
+        self.goal_label.configure(text=text)
+
+    def bankToBag(self, curr_bag, bank_counts):
+        if self._closed:
+            return
+        self.curr_bag = curr_bag
+        self.curr_bank = [self.curr_bank[0], bank_counts]
+        self.bank_selected = set()
+        self._render_all()
+        self.root.update_idletasks()
+
     def warn(self, message):
         if self._closed:
             return
         self.warn_label.configure(text=message)
-        self._pause(WARN_MS)
-        if not self._closed:
-            self.warn_label.configure(text="")
 
-    def close(self):
+    def close(self, delay_ms=0):
         if not self._closed:
+            if delay_ms:
+                self._pause(delay_ms)
             self._closed = True
             try:
                 self.root.destroy()
