@@ -556,17 +556,3 @@ class SnakeHuntUI:
             self.root.destroy()
         except tk.TclError:
             pass
-
-
-if __name__ == "__main__":
-    # Quick standalone demo: python3 snake_ui.py
-    ui = SnakeHuntUI(image_dir="snakeimages")
-    try:
-        place, tail, head, mis = 1, 14, 20, 0
-        delta = ui.asktail(place, tail, head)
-        print("tail delta:", delta)
-        ui.moveplayer(max(1, min(60, place + delta)))
-        guess = ui.askhead(tail, head, mis, snake_len=head - tail)
-        print("head guess:", guess)
-    finally:
-        ui.close()

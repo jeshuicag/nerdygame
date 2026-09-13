@@ -226,9 +226,9 @@ class GroceryShopUI:
             self.hint.configure(text="")
             return
         if self.focus_idx < self.target:
-            self.hint.configure(text="more! ▶")
+            self.hint.configure(text="-->")
         elif self.focus_idx > self.target:
-            self.hint.configure(text="◀ less! ")
+            self.hint.configure(text="<--")
 
     def _center_window(self):
         w = self.root.winfo_width()
