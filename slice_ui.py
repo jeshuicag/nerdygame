@@ -278,6 +278,9 @@ class SliceUI:
                 lbl.bind("<Button-1>",
                         lambda e, kk=key, pi=pizza_idx: self._pizza_piece_click(kk, pi, e.x, e.y))
 
+        add_btn = self._make_button(col, "Add Pizza", lambda: self._new_pizza(key))
+        add_btn.pack(pady=(8, 0))
+
         plate_box = tk.Frame(col, bg=PLATE_BG, highlightbackground=BUBBLE_BORDER,
                              highlightthickness=2)
         plate_box.pack(pady=(10, 0))
