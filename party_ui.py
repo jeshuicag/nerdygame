@@ -148,6 +148,33 @@ class PartyUI:
         lbl.bind("<Leave>", lambda e: lbl.configure(bg=BTN_BG))
         return lbl
 
+    # ------------------------------------------------------------- bubble
+    def _topping_icon(self, name):
+        if name not in self._topping_icons:
+            pil_img = Image.open(os.path.join(self.toppings_dir, f"{name}.png")).convert("RGBA")
+            pil_img.thumbnail((TOPPING_ICON_PX, TOPPING_ICON_PX), Image.LANCZOS)
+            self._topping_icons[name] = ImageTk.PhotoImage(pil_img)
+        return self._topping_icons[name]
+
+    def _render_bubble(self, text, tpk, toppings):
+        self.bubble_text.configure(text=text)
+        for w in self.bubble_toppings.winfo_children():
+            w.destroy()
+        if tpk and toppings:
+            for name, k in zip(toppings, tpk):
+                row = tk.Frame(self.bubble_toppings, bg=BUBBLE_BG)
+                row.pack(side="left", padx=(0, 14))
+                tk.Label(row, image=self._topping_icon(name), bg=BUBBLE_BG).pack(side="left")
+                tk.Label(row, text=f"x{k}", bg=BUBBLE_BG, fg=TEXT,
+                        font=("Helvetica", 14, "bold")).pack(side="left", padx=(4, 0))
+        self._show()
+
+    def server(self, text, tpk, toppings):
+        self._render_bubble(text, tpk, toppings)
+
+    def display(self, text, a, b):
+        self._render_bubble(text, None, None)
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
