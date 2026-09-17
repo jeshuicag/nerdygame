@@ -350,7 +350,7 @@ class PartyUI:
             self._cupcake_board = PlacementBoard(
                 base_image_path=os.path.join(self.image_dir, "plate.png.webp"),
                 items=items, base_count=num_kids,
-                initial_inventory={"cupcake": num_cakes}, show_item_switcher=False)
+                initial_inventory={"cupcake": num_cakes}, show_item_switcher=True)
         return self._cupcake_board
 
     def _render_number_answer(self, parent):
