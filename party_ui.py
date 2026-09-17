@@ -175,6 +175,64 @@ class PartyUI:
     def display(self, text, a, b):
         self._render_bubble(text, None, None)
 
+    # ----------------------------------------------------------- checklist
+    def _render_checklist_panel(self, parent, t_inv, mistakes, toppings):
+        for w in parent.winfo_children():
+            w.destroy()
+        check_vars = {}
+        for i, name in enumerate(toppings):
+            locked = mistakes[i] % 2 == 0 and mistakes[i] != -1
+            row_bg = LOCKED_BG if locked else BG
+            row = tk.Frame(parent, bg=row_bg)
+            row.pack(pady=4, anchor="w")
+
+            tk.Label(row, image=self._topping_icon(name), bg=row_bg).pack(side="left", padx=(0, 8))
+            tk.Label(row, text=str(t_inv[i]), bg=row_bg,
+                    fg=LOCKED_FG if locked else TEXT,
+                    font=("Helvetica", 13, "bold"), width=4).pack(side="left")
+
+            var = tk.BooleanVar(value=bool(self._checklist_state.get(i, False)))
+            cb = tk.Checkbutton(row, variable=var, bg=row_bg, activebackground=row_bg,
+                                state="disabled" if locked else "normal")
+            cb.pack(side="left", padx=8)
+            check_vars[i] = var
+
+        submit = self._make_button(parent, "Submit", lambda: self._done.set(1))
+        submit.pack(pady=(12, 0))
+        return check_vars
+
+    def _collect_checklist(self, check_vars, mistakes, toppings):
+        enough = []
+        for i in range(len(toppings)):
+            if mistakes[i] % 2 == 0 and mistakes[i] != -1:
+                enough.append(1 if self._checklist_state.get(i, False) else 0)
+            else:
+                val = check_vars[i].get()
+                self._checklist_state[i] = val
+                enough.append(1 if val else 0)
+        return enough
+
+    def askEnough(self, num_kids, tpk, t_inv, mistakes, toppings, allow_pizza_visual):
+        self._num_kids = num_kids
+        if allow_pizza_visual:
+            return self._ask_enough_visual(t_inv, mistakes, toppings, tpk)
+        return self._ask_enough_plain(t_inv, mistakes, toppings)
+
+    def _ask_enough_plain(self, t_inv, mistakes, toppings):
+        self._set_backdrop_dim(False)
+        self.visual_frame.pack_forget()
+        self.plain_panel.pack(fill="both", expand=True)
+
+        check_vars = self._render_checklist_panel(self.plain_panel, t_inv, mistakes, toppings)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_checklist(check_vars, mistakes, toppings)
+
+    def _ask_enough_visual(self, t_inv, mistakes, toppings, tpk):
+        raise NotImplementedError("pizza visual wired up in Task 6")
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
