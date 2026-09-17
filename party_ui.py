@@ -233,6 +233,69 @@ class PartyUI:
     def _ask_enough_visual(self, t_inv, mistakes, toppings, tpk):
         raise NotImplementedError("pizza visual wired up in Task 6")
 
+    # ----------------------------------------------------------- shoplist
+    def _render_shoplist_panel(self, parent, mistakes, warnings, toppings):
+        for w in parent.winfo_children():
+            w.destroy()
+        entries = {}
+        for i, name in enumerate(toppings):
+            if mistakes[i] not in (2, 3):
+                continue
+            locked = warnings[i] == 0
+            row_bg = LOCKED_BG if locked else BG
+            row = tk.Frame(parent, bg=row_bg)
+            row.pack(pady=4, anchor="w")
+
+            tk.Label(row, image=self._topping_icon(name), bg=row_bg).pack(side="left", padx=(0, 8))
+
+            if locked:
+                tk.Label(row, text=str(self._shoplist_state.get(i, 0)), bg=row_bg,
+                        fg=LOCKED_FG, font=("Helvetica", 13, "bold"), width=6).pack(side="left")
+            else:
+                entry = tk.Entry(row, width=6, font=("Helvetica", 13))
+                entry.insert(0, "0")
+                entry.pack(side="left")
+                entries[i] = entry
+
+        submit = self._make_button(parent, "Submit", lambda: self._done.set(1))
+        submit.pack(pady=(12, 0))
+        return entries
+
+    def _collect_shoplist(self, entries, mistakes, warnings, toppings):
+        added = [0] * len(toppings)
+        for i in range(len(toppings)):
+            if mistakes[i] not in (2, 3):
+                continue
+            if warnings[i] == 0:
+                added[i] = self._shoplist_state.get(i, 0)
+            else:
+                raw = entries[i].get().strip()
+                val = int(raw) if raw.isdigit() else 0
+                self._shoplist_state[i] = val
+                added[i] = val
+        return added
+
+    def prompt(self, kids, tpk, t_inv, mistakes, warnings, toppings, allow_pizza_visual):
+        self._num_kids = kids
+        if allow_pizza_visual:
+            return self._prompt_visual(t_inv, mistakes, warnings, toppings, tpk)
+        return self._prompt_plain(mistakes, warnings, toppings)
+
+    def _prompt_plain(self, mistakes, warnings, toppings):
+        self._set_backdrop_dim(False)
+        self.visual_frame.pack_forget()
+        self.plain_panel.pack(fill="both", expand=True)
+
+        entries = self._render_shoplist_panel(self.plain_panel, mistakes, warnings, toppings)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_shoplist(entries, mistakes, warnings, toppings)
+
+    def _prompt_visual(self, t_inv, mistakes, warnings, toppings, tpk):
+        raise NotImplementedError("pizza visual wired up in Task 6")
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
