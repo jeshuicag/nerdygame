@@ -284,11 +284,11 @@ class SliceUI:
         plate_box = tk.Frame(col, bg=PLATE_BG, highlightbackground=BUBBLE_BORDER,
                              highlightthickness=2)
         plate_box.pack(pady=(10, 0))
-        plate_bg_lbl = tk.Label(plate_box, image=self._plate_img, bg=PLATE_BG)
-        plate_bg_lbl.place(x=0, y=0)
-        plate_grid = tk.Frame(plate_box, bg=PLATE_BG, width=PLATE_PX, height=PLATE_PX)
+        # The plate art IS the container the plated pieces get placed into --
+        # a separate opaque Frame stacked on top would hide the image entirely.
+        plate_grid = tk.Label(plate_box, image=self._plate_img, bg=PLATE_BG,
+                              width=PLATE_PX, height=PLATE_PX, bd=0, highlightthickness=0)
         plate_grid.pack()
-        plate_grid.pack_propagate(False)
 
         i = 0
         for pizza_idx, pieces in enumerate(self._pizzas[key]):
