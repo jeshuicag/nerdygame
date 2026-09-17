@@ -159,6 +159,61 @@ class SliceUI:
         self._bubble2_text.configure(text=text)
         self._show()
 
+    # ------------------------------------------------------------- cutPizza
+    def makeCuts(self, denom2):
+        if self._closed:
+            return (1, None if denom2 is None else 1)
+
+        self._cut_state = {"left": 1, "right": 1}
+        active = ["left"] + (["right"] if denom2 is not None else [])
+
+        for key in active:
+            self._render_cut_pizza(key)
+        if denom2 is None:
+            for w in self.pizza_col2.winfo_children():
+                w.destroy()
+
+        submit = self._make_button(self.root, "Cut", lambda: self._done.set(1))
+        submit.pack(side="bottom", pady=(6, 0))
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        submit.destroy()
+
+        if self._closed:
+            return (1, None if denom2 is None else 1)
+        slice1 = self._cut_state["left"]
+        slice2 = self._cut_state["right"] if denom2 is not None else None
+        return (slice1, slice2)
+
+    def _render_cut_pizza(self, key):
+        col = self.pizza_col1 if key == "left" else self.pizza_col2
+        for w in col.winfo_children():
+            w.destroy()
+
+        stack = tk.Frame(col, bg=BG, width=PIZZA_PX, height=PIZZA_PX)
+        stack.pack()
+        stack.pack_propagate(False)
+
+        n = self._cut_state[key]
+        for k in range(1, n + 1):
+            lbl = tk.Label(stack, image=self._slice_photo[(n, k)], bg=BG, bd=0,
+                           highlightthickness=0, cursor="hand2")
+            lbl.place(x=0, y=0)
+            lbl.bind("<Button-1>", lambda e, kk=key: self._cycle_pizza(kk))
+
+        reset_btn = self._make_button(col, "New Pizza", lambda: self._reset_pizza(key))
+        reset_btn.pack(pady=(8, 0))
+
+    def _cycle_pizza(self, key):
+        self._cut_state[key] = (self._cut_state[key] % 5) + 1
+        self._render_cut_pizza(key)
+
+    def _reset_pizza(self, key):
+        self._cut_state[key] = 1
+        self._render_cut_pizza(key)
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
