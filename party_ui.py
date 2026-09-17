@@ -204,21 +204,27 @@ class PartyUI:
     def _collect_checklist(self, check_vars, mistakes, toppings):
         enough = []
         for i in range(len(toppings)):
+            # Backend contract: 0 == player said "enough", 1 == player said
+            # "not enough".  A checked box means the player said "enough".
             if mistakes[i] % 2 == 0 and mistakes[i] != -1:
-                enough.append(1 if self._checklist_state.get(i, False) else 0)
+                enough.append(0 if self._checklist_state.get(i, False) else 1)
             else:
                 val = check_vars[i].get()
                 self._checklist_state[i] = val
-                enough.append(1 if val else 0)
+                enough.append(0 if val else 1)
         return enough
 
     def askEnough(self, num_kids, tpk, t_inv, mistakes, toppings, allow_pizza_visual):
+        if self._closed:
+            return [0] * len(toppings)
         self._num_kids = num_kids
         if allow_pizza_visual:
             return self._ask_enough_visual(t_inv, mistakes, toppings, tpk)
         return self._ask_enough_plain(t_inv, mistakes, toppings)
 
     def _ask_enough_plain(self, t_inv, mistakes, toppings):
+        if self._closed:
+            return [0] * len(toppings)
         self._set_backdrop_dim(False)
         self.visual_frame.pack_forget()
         self.plain_panel.pack(fill="both", expand=True)
@@ -228,6 +234,8 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return [0] * len(toppings)
         return self._collect_checklist(check_vars, mistakes, toppings)
 
     # -------------------------------------------------------- pizza visual
@@ -252,6 +260,8 @@ class PartyUI:
                     font=("Helvetica", 13, "bold")).pack(side="left", padx=(6, 0))
 
     def _ask_enough_visual(self, t_inv, mistakes, toppings, tpk):
+        if self._closed:
+            return [0] * len(toppings)
         self._set_backdrop_dim(True)
         self.plain_panel.pack_forget()
         self.visual_frame.pack(fill="both", expand=True)
@@ -265,6 +275,8 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return [0] * len(toppings)
         return self._collect_checklist(check_vars, mistakes, toppings)
 
     # ----------------------------------------------------------- shoplist
@@ -310,12 +322,16 @@ class PartyUI:
         return added
 
     def prompt(self, kids, tpk, t_inv, mistakes, warnings, toppings, allow_pizza_visual):
+        if self._closed:
+            return [0] * len(toppings)
         self._num_kids = kids
         if allow_pizza_visual:
             return self._prompt_visual(t_inv, mistakes, warnings, toppings, tpk)
         return self._prompt_plain(mistakes, warnings, toppings)
 
     def _prompt_plain(self, mistakes, warnings, toppings):
+        if self._closed:
+            return [0] * len(toppings)
         self._set_backdrop_dim(False)
         self.visual_frame.pack_forget()
         self.plain_panel.pack(fill="both", expand=True)
@@ -325,9 +341,13 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return [0] * len(toppings)
         return self._collect_shoplist(entries, mistakes, warnings, toppings)
 
     def _prompt_visual(self, t_inv, mistakes, warnings, toppings, tpk):
+        if self._closed:
+            return [0] * len(toppings)
         self._set_backdrop_dim(True)
         self.plain_panel.pack_forget()
         self.visual_frame.pack(fill="both", expand=True)
@@ -341,6 +361,8 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return [0] * len(toppings)
         return self._collect_shoplist(entries, mistakes, warnings, toppings)
 
     # ------------------------------------------------------------- cupcakes
@@ -371,11 +393,15 @@ class PartyUI:
         return int(raw) if raw.lstrip("-").isdigit() else 0
 
     def quest(self, allow_cupcake_visual, num_kids, num_cakes):
+        if self._closed:
+            return 0
         if allow_cupcake_visual:
             return self._quest_visual(num_kids, num_cakes)
         return self._quest_plain(num_kids, num_cakes)
 
     def _quest_plain(self, num_kids, num_cakes):
+        if self._closed:
+            return 0
         self._set_backdrop_dim(False)
         self.visual_frame.pack_forget()
         self.plain_panel.pack(fill="both", expand=True)
@@ -385,9 +411,13 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return 0
         return self._collect_number_answer(answer_var)
 
     def _quest_visual(self, num_kids, num_cakes):
+        if self._closed:
+            return 0
         self._set_backdrop_dim(True)
         self.plain_panel.pack_forget()
         self.visual_frame.pack(fill="both", expand=True)
@@ -403,6 +433,8 @@ class PartyUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
+        if self._closed:
+            return 0
         return self._collect_number_answer(answer_var)
 
     # ------------------------------------------------------------ window
