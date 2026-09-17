@@ -40,11 +40,16 @@ BTN_ACTIVE = "#ffbe4d"
 PLATE_BG = "#f6ead1"
 
 CUSTOMER_PX = 160
-PIZZA_PX = 260
-COUNTER_MAX_W = 900
-PLATE_PX = 220
-PLATE_PIECE_PX = 50
-PLATE_PIECE_COLS = 4
+# Sized so the worst common layout -- a double round where both customers
+# need 2 pizzas of 5 slices each -- fits a 1280x800 laptop screen with room
+# to spare for the title/menu bars (measured root request: 1240x740).
+PIZZA_PX = 200
+COUNTER_MAX_W = 460
+PLATE_PX = 175
+# 5 cols x 5 rows = 25 pieces (5 pizzas of 5 slices, the real worst case)
+# all land inside the plate: 4 + 4 * (30 + 4) + 30 = 170 <= PLATE_PX.
+PLATE_PIECE_PX = 30
+PLATE_PIECE_COLS = 5
 
 
 class SliceUI:
@@ -104,7 +109,7 @@ class SliceUI:
     # ------------------------------------------------------------- build
     def _build(self):
         row = tk.Frame(self.root, bg=BG)
-        row.pack(fill="both", expand=True, padx=20, pady=20)
+        row.pack(fill="both", expand=True, padx=16, pady=10)
 
         self.left_zone = tk.Frame(row, bg=BG)
         self.left_zone.pack(side="left", fill="both", expand=True)
