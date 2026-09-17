@@ -217,6 +217,110 @@ class SliceUI:
         self._cut_state[key] = 1
         self._render_cut_pizza(key)
 
+    # ------------------------------------------------------------- handOver
+    def onPlate(self, denom, denom2):
+        if self._closed:
+            return (0, None if denom2 is None else 0)
+
+        self._handover_denom = {"left": denom, "right": denom2}
+        active = ["left"] + (["right"] if denom2 is not None else [])
+        self._pizzas = {"left": [], "right": []}
+        self._plate_count = {"left": 0, "right": 0}
+
+        for key in active:
+            self._new_pizza(key)
+        if denom2 is None:
+            for w in self.pizza_col2.winfo_children():
+                w.destroy()
+
+        submit = self._make_button(self.root, "Hand Over", lambda: self._done.set(1))
+        submit.pack(side="bottom", pady=(6, 0))
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        try:
+            submit.destroy()
+        except tk.TclError:
+            pass
+
+        if self._closed:
+            return (0, None if denom2 is None else 0)
+        slices1 = self._plate_count["left"]
+        slices2 = self._plate_count["right"] if denom2 is not None else None
+        return (slices1, slices2)
+
+    def _new_pizza(self, key):
+        n = self._handover_denom[key]
+        pieces = [{"k": k, "on_plate": False} for k in range(1, n + 1)]
+        self._pizzas[key].append(pieces)
+        self._render_handover(key)
+
+    def _render_handover(self, key):
+        col = self.pizza_col1 if key == "left" else self.pizza_col2
+        for w in col.winfo_children():
+            w.destroy()
+
+        n = self._handover_denom[key]
+        pizzas_row = tk.Frame(col, bg=BG)
+        pizzas_row.pack()
+
+        for pizza_idx, pieces in enumerate(self._pizzas[key]):
+            stack = tk.Frame(pizzas_row, bg=BG, width=PIZZA_PX, height=PIZZA_PX)
+            stack.pack(side="left", padx=6)
+            stack.pack_propagate(False)
+            for piece in pieces:
+                if piece["on_plate"]:
+                    continue
+                lbl = tk.Label(stack, image=self._slice_photo[(n, piece["k"])], bg=BG, bd=0,
+                               highlightthickness=0, cursor="hand2")
+                lbl.place(x=0, y=0)
+                lbl.bind("<Button-1>",
+                        lambda e, kk=key, pi=pizza_idx: self._pizza_piece_click(kk, pi, e.x, e.y))
+
+        plate_box = tk.Frame(col, bg=PLATE_BG, highlightbackground=BUBBLE_BORDER,
+                             highlightthickness=2)
+        plate_box.pack(pady=(10, 0))
+        plate_bg_lbl = tk.Label(plate_box, image=self._plate_img, bg=PLATE_BG)
+        plate_bg_lbl.place(x=0, y=0)
+        plate_grid = tk.Frame(plate_box, bg=PLATE_BG, width=PLATE_PX, height=PLATE_PX)
+        plate_grid.pack()
+        plate_grid.pack_propagate(False)
+
+        i = 0
+        for pizza_idx, pieces in enumerate(self._pizzas[key]):
+            for piece_idx, piece in enumerate(pieces):
+                if not piece["on_plate"]:
+                    continue
+                r, c = divmod(i, PLATE_PIECE_COLS)
+                lbl = tk.Label(plate_grid, image=self._slice_photo_small[(n, piece["k"])],
+                               bg=PLATE_BG, bd=0, highlightthickness=0, cursor="hand2")
+                lbl.place(x=4 + c * (PLATE_PIECE_PX + 4), y=4 + r * (PLATE_PIECE_PX + 4))
+                lbl.bind("<Button-1>",
+                        lambda e, kk=key, pi=pizza_idx, ppi=piece_idx: self._plate_piece_click(kk, pi, ppi))
+                i += 1
+
+    def _pizza_piece_click(self, key, pizza_idx, x, y):
+        n = self._handover_denom[key]
+        pieces = self._pizzas[key][pizza_idx]
+        # Topmost piece first (highest k was drawn last -> on top), so a
+        # click in an area where pieces overlap resolves to whichever one
+        # is actually visible there.
+        for piece in sorted((p for p in pieces if not p["on_plate"]),
+                            key=lambda p: p["k"], reverse=True):
+            pil_img = self._slice_pil[(n, piece["k"])]
+            if 0 <= x < PIZZA_PX and 0 <= y < PIZZA_PX and pil_img.getpixel((x, y))[3] > 10:
+                piece["on_plate"] = True
+                self._plate_count[key] += 1
+                self._render_handover(key)
+                return
+
+    def _plate_piece_click(self, key, pizza_idx, piece_idx):
+        piece = self._pizzas[key][pizza_idx][piece_idx]
+        piece["on_plate"] = False
+        self._plate_count[key] -= 1
+        self._render_handover(key)
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
