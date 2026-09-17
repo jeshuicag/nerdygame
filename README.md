@@ -17,7 +17,26 @@ run snake hunt: /opt/anaconda3/bin/python3.12 cointrade.py
 
 Party: number of kids that all need the same amount of food. Use to teach multiplication/ division. Server tells player how many kids there are and how much food each one needs, and player figures out total amount of food. Player has certain amount of cupcakes and needs to figure out how many each kid will have, and also take away remainders. Start with parties of two to teach odd/even, then increase. Targeted to 2/3 grade, become more complex as mastery increases.
 
+run party: /opt/anaconda3/bin/python3.12 bdayparty.py
+
 Counter: Teach fractions by having customers ask for fractional amount of pizza. Player must cut pizza into denominator and serve correct amount. Targeted to 3/4 grade, fractions become more complex as mastery increases. Serve two customers at once to showcase value of different fractions, when fractions with different denominators are the same, etc etc.
 
 Once mastery is reached, player can hire 'employees' to automate certain skills like grocery runs or cashier. Employees can occasionally ask higher level questions and also skill check questions, and will quit if player fails skill check.
+
+Want to do:
+- make cleaner backend/ frontend distinction. Front end should be simpler, backend should handle all logic. Some visual implementations that don't exist without a front end need extra logic and are currently implemented in the front end completely. Move it over to the backend. cointrade.py is the best example of a clean front end/ back end split.
+
+- overall make the visuals more appealing/ thematic
+    - make the party seem more like a party in the background, present it visually as less like a word problem, make items look more like what they should be
+    - big motivation there is supposed to be fairness (kids naturally want things to be equal when everyone is sharing), so present it more in a 'if you get this wrong someone won't have an equal share' way
+
+- add tutorials for first time playing each minigame
+
+- tune level calculation and finance system
+
+- employee system
+
+- more advanced levels (multi-digit multiplication, bigger fractions)
+
+- reinforce connection between things (smaller orders lead to less to add in next coin trade activity, using up ingredients means buying more in the next grocer run, etc)
 
