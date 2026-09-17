@@ -230,8 +230,42 @@ class PartyUI:
         self.root.wait_variable(self._done)
         return self._collect_checklist(check_vars, mistakes, toppings)
 
+    # -------------------------------------------------------- pizza visual
+    def _get_pizza_board(self, t_inv, toppings):
+        if self._pizza_board is None:
+            items = [(name, os.path.join(self.toppings_dir, f"{name}.png")) for name in toppings]
+            initial_inventory = {name: t_inv[i] for i, name in enumerate(toppings)}
+            self._pizza_board = PlacementBoard(
+                base_image_path=os.path.join(self.image_dir, "pizza.png"),
+                items=items, base_count=self._num_kids,
+                initial_inventory=initial_inventory, show_item_switcher=True)
+        return self._pizza_board
+
+    def _render_order_list(self, tpk, toppings):
+        for w in self.left_panel_frame.winfo_children():
+            w.destroy()
+        for name, k in zip(toppings, tpk):
+            row = tk.Frame(self.left_panel_frame, bg=BG)
+            row.pack(pady=4, anchor="w")
+            tk.Label(row, image=self._topping_icon(name), bg=BG).pack(side="left")
+            tk.Label(row, text=f"x{k}", bg=BG, fg=TEXT,
+                    font=("Helvetica", 13, "bold")).pack(side="left", padx=(6, 0))
+
     def _ask_enough_visual(self, t_inv, mistakes, toppings, tpk):
-        raise NotImplementedError("pizza visual wired up in Task 6")
+        self._set_backdrop_dim(True)
+        self.plain_panel.pack_forget()
+        self.visual_frame.pack(fill="both", expand=True)
+
+        board = self._get_pizza_board(t_inv, toppings)
+        board.render(self.top_inventory_frame, self.center_board_frame)
+
+        self._render_order_list(tpk, toppings)
+        check_vars = self._render_checklist_panel(self.right_panel_frame, t_inv, mistakes, toppings)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_checklist(check_vars, mistakes, toppings)
 
     # ----------------------------------------------------------- shoplist
     def _render_shoplist_panel(self, parent, mistakes, warnings, toppings):
@@ -294,7 +328,20 @@ class PartyUI:
         return self._collect_shoplist(entries, mistakes, warnings, toppings)
 
     def _prompt_visual(self, t_inv, mistakes, warnings, toppings, tpk):
-        raise NotImplementedError("pizza visual wired up in Task 6")
+        self._set_backdrop_dim(True)
+        self.plain_panel.pack_forget()
+        self.visual_frame.pack(fill="both", expand=True)
+
+        board = self._get_pizza_board(t_inv, toppings)
+        board.render(self.top_inventory_frame, self.center_board_frame)
+
+        self._render_order_list(tpk, toppings)
+        entries = self._render_shoplist_panel(self.right_panel_frame, mistakes, warnings, toppings)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_shoplist(entries, mistakes, warnings, toppings)
 
     # ------------------------------------------------------------ window
     def _show(self):
