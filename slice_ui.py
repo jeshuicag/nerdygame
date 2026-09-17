@@ -179,7 +179,10 @@ class SliceUI:
         self._done.set(0)
         self._show()
         self.root.wait_variable(self._done)
-        submit.destroy()
+        try:
+            submit.destroy()
+        except tk.TclError:
+            pass
 
         if self._closed:
             return (1, None if denom2 is None else 1)
