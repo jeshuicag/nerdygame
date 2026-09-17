@@ -215,10 +215,14 @@ class SliceUI:
         reset_btn.pack(pady=(8, 0))
 
     def _cycle_pizza(self, key):
+        if self._closed:
+            return
         self._cut_state[key] = (self._cut_state[key] % 5) + 1
         self._render_cut_pizza(key)
 
     def _reset_pizza(self, key):
+        if self._closed:
+            return
         self._cut_state[key] = 1
         self._render_cut_pizza(key)
 
@@ -256,6 +260,8 @@ class SliceUI:
         return (slices1, slices2)
 
     def _new_pizza(self, key):
+        if self._closed:
+            return
         n = self._handover_denom[key]
         pieces = [{"k": k, "on_plate": False} for k in range(1, n + 1)]
         self._pizzas[key].append(pieces)
@@ -309,6 +315,8 @@ class SliceUI:
                 i += 1
 
     def _pizza_piece_click(self, key, pizza_idx, x, y):
+        if self._closed:
+            return
         n = self._handover_denom[key]
         pieces = self._pizzas[key][pizza_idx]
         # Topmost piece first (highest k was drawn last -> on top), so a
@@ -324,6 +332,8 @@ class SliceUI:
                 return
 
     def _plate_piece_click(self, key, pizza_idx, piece_idx):
+        if self._closed:
+            return
         piece = self._pizzas[key][pizza_idx][piece_idx]
         piece["on_plate"] = False
         self._plate_count[key] -= 1
