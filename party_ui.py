@@ -343,6 +343,68 @@ class PartyUI:
         self.root.wait_variable(self._done)
         return self._collect_shoplist(entries, mistakes, warnings, toppings)
 
+    # ------------------------------------------------------------- cupcakes
+    def _get_cupcake_board(self, num_kids, num_cakes):
+        if self._cupcake_board is None:
+            items = [("cupcake", os.path.join(self.image_dir, "cupcake.png"))]
+            self._cupcake_board = PlacementBoard(
+                base_image_path=os.path.join(self.image_dir, "plate.png.webp"),
+                items=items, base_count=num_kids,
+                initial_inventory={"cupcake": num_cakes}, show_item_switcher=False)
+        return self._cupcake_board
+
+    def _render_number_answer(self, parent):
+        for w in parent.winfo_children():
+            w.destroy()
+        answer_var = tk.StringVar(value="")
+        entry = tk.Entry(parent, textvariable=answer_var, width=6, font=("Helvetica", 20))
+        entry.pack(pady=(20, 10))
+        entry.bind("<Return>", lambda e: self._done.set(1))
+        submit = self._make_button(parent, "Submit", lambda: self._done.set(1))
+        submit.pack()
+        entry.focus_set()
+        return answer_var
+
+    @staticmethod
+    def _collect_number_answer(answer_var):
+        raw = answer_var.get().strip()
+        return int(raw) if raw.lstrip("-").isdigit() else 0
+
+    def quest(self, allow_cupcake_visual, num_kids, num_cakes):
+        if allow_cupcake_visual:
+            return self._quest_visual(num_kids, num_cakes)
+        return self._quest_plain(num_kids, num_cakes)
+
+    def _quest_plain(self, num_kids, num_cakes):
+        self._set_backdrop_dim(False)
+        self.visual_frame.pack_forget()
+        self.plain_panel.pack(fill="both", expand=True)
+
+        answer_var = self._render_number_answer(self.plain_panel)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_number_answer(answer_var)
+
+    def _quest_visual(self, num_kids, num_cakes):
+        self._set_backdrop_dim(True)
+        self.plain_panel.pack_forget()
+        self.visual_frame.pack(fill="both", expand=True)
+
+        for w in self.right_panel_frame.winfo_children():
+            w.destroy()
+
+        board = self._get_cupcake_board(num_kids, num_cakes)
+        board.render(self.top_inventory_frame, self.center_board_frame)
+
+        answer_var = self._render_number_answer(self.left_panel_frame)
+
+        self._done.set(0)
+        self._show()
+        self.root.wait_variable(self._done)
+        return self._collect_number_answer(answer_var)
+
     # ------------------------------------------------------------ window
     def _show(self):
         if not self._shown:
