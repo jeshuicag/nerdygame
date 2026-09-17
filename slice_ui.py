@@ -6,14 +6,21 @@ left (customer1, the plain-named speak/makeCuts.../onPlate... slot) and
 right (customer2, the "2"-suffixed slot) -- sharing one counter along the
 bottom.
 
-Each pizza is rendered as a stack of same-size, same-position Labels (one
-per slice-image piece for the current slice count), so the pieces visually
-combine into a whole pizza via their transparent backgrounds. During
-handover, a click's target piece is found by testing each piece's real
-pixel alpha at the click point (checking the topmost piece first), not by
-widget bounding boxes -- every piece's Label covers the whole pizza, so
-bounding-box hit testing alone could never reach anything but the
-topmost piece.
+Each pizza is rendered as one image: the current slice count's pieces are
+alpha-composited together with PIL into a single merged picture before
+being shown (Tk doesn't composite separate same-position Labels' alpha
+channels against each other -- each Label's own "transparent" pixels just
+paint its own opaque background color over whatever's beneath it, so
+naively stacking per-piece Labels hides everything but the topmost one).
+During handover, a click's target piece is still found by testing each
+underlying piece's real pixel alpha at the click point against the
+one-per-piece PIL data kept for hit-testing (checking the topmost piece
+first) -- the composited image is only for display; hit-testing never
+relies on separate widgets per piece.
+
+The right-hand customer column (customer2, speech bubble, its pizza) is
+only shown while there's a second customer -- hidden via pack/pack_forget
+whenever denom2 is None.
 
 Usage from bySlice.py:
 
@@ -25,11 +32,17 @@ Usage from bySlice.py:
 """
 
 import os
+import random
 import tkinter as tk
 
 from PIL import Image, ImageTk
 
 PARTY_IMAGE_DIR = "partyimages"  # counter.png / plate.png.webp are reused from the party game
+
+# bySlice.py wraps a hint-level-2+ target value in this exact escape
+# sequence (a terminal underline code -- meaningless to Tkinter, so it's
+# used here purely as a marker to detect and re-render as real emphasis).
+UNDERLINE = "\033[4m"
 
 BG = "#fdf6e3"
 TEXT = "#3b2f1e"
@@ -38,6 +51,7 @@ BUBBLE_BORDER = "#3b2f1e"
 BTN_BG = "#ffd27f"
 BTN_ACTIVE = "#ffbe4d"
 PLATE_BG = "#f6ead1"
+EMPHASIS_COLOR = "#c0392b"  # matches coin_ui.py's WARN_FG, for consistency
 
 CUSTOMER_PX = 160
 # Sized so the worst common layout -- a double round where both customers
@@ -45,11 +59,15 @@ CUSTOMER_PX = 160
 # to spare for the title/menu bars (measured root request: 1240x740).
 PIZZA_PX = 200
 COUNTER_MAX_W = 460
-PLATE_PX = 175
-# 5 cols x 5 rows = 25 pieces (5 pizzas of 5 slices, the real worst case)
-# all land inside the plate: 4 + 4 * (30 + 4) + 30 = 170 <= PLATE_PX.
-PLATE_PIECE_PX = 30
-PLATE_PIECE_COLS = 5
+PLATE_PX = 200
+PLATE_PIECE_PX = 55
+# The plate art is a circle that nearly fills its canvas edge-to-edge
+# (~97% diameter, same asset reused from the party game's cupcake board,
+# where this was measured directly against the source pixels). Plated
+# pieces are scattered at random within a slightly smaller circle (leaving
+# margin for each piece's own footprint) so they land visibly on the
+# plate and can overlap naturally, like real slices piled up.
+PLATE_CIRCLE_FRACTION = 0.85
 
 
 class SliceUI:
@@ -86,16 +104,20 @@ class SliceUI:
 
         plate = Image.open(os.path.join(PARTY_IMAGE_DIR, "plate.png.webp")).convert("RGBA")
         plate.thumbnail((PLATE_PX, PLATE_PX), Image.LANCZOS)
-        self._plate_img = ImageTk.PhotoImage(plate)
+        # Resize to an exact square (thumbnail only caps, doesn't pad) so
+        # the plate's own center/radius math in _random_plate_position is
+        # exact, not approximate.
+        self._plate_pil = plate.resize((PLATE_PX, PLATE_PX), Image.LANCZOS)
 
     def _load_slice_images(self):
         # self._slice_pil keeps the resized PIL Image (with real alpha
-        # data) for hit-testing; self._slice_photo/_photo_small are the Tk
-        # PhotoImages actually drawn (full pizza size, and a smaller size
-        # for once a piece is sitting on the plate).
+        # data) for hit-testing and for compositing onto the pizza/plate;
+        # self._slice_photo is the full-pizza-size Tk PhotoImage actually
+        # drawn. self._slice_pil_plate is a separate, plate-scale PIL
+        # resize used only once a piece is sitting on the plate.
         self._slice_pil = {}
         self._slice_photo = {}
-        self._slice_photo_small = {}
+        self._slice_pil_plate = {}
         for n in range(1, 6):
             filenames = ["1slice.PNG"] if n == 1 else [f"{n}slice-{k}.PNG" for k in range(1, n + 1)]
             for k, fname in enumerate(filenames, start=1):
@@ -103,8 +125,42 @@ class SliceUI:
                 pil_full = pil_img.resize((PIZZA_PX, PIZZA_PX), Image.LANCZOS)
                 self._slice_pil[(n, k)] = pil_full
                 self._slice_photo[(n, k)] = ImageTk.PhotoImage(pil_full)
-                pil_small = pil_img.resize((PLATE_PIECE_PX, PLATE_PIECE_PX), Image.LANCZOS)
-                self._slice_photo_small[(n, k)] = ImageTk.PhotoImage(pil_small)
+                self._slice_pil_plate[(n, k)] = pil_img.resize(
+                    (PLATE_PIECE_PX, PLATE_PIECE_PX), Image.LANCZOS)
+
+        # A full pizza at slice-count n, all n pieces merged into one
+        # image up front (cutPizza always shows every piece, so this never
+        # needs recomputing per-render).
+        self._full_pizza_photo = {
+            n: self._composite_photo(n, range(1, n + 1)) for n in range(1, 6)
+        }
+
+    def _composite_photo(self, n, ks):
+        """Alpha-composite the given piece keys (for slice-count n) into
+        one merged image and return it as a PhotoImage.
+
+        Stacking separate Labels (one per piece, all at the same position)
+        does NOT visually combine them: each Label's "transparent" pixels
+        render as that Label's own opaque bg color, hiding whatever piece
+        is stacked beneath it -- Tk doesn't composite sibling widgets'
+        alpha channels. So pieces must be merged with real PIL alpha
+        compositing into a single image before being displayed.
+        """
+        merged = Image.new("RGBA", (PIZZA_PX, PIZZA_PX), (0, 0, 0, 0))
+        for k in ks:
+            merged = Image.alpha_composite(merged, self._slice_pil[(n, k)])
+        return ImageTk.PhotoImage(merged)
+
+    @staticmethod
+    def _random_plate_position():
+        cx = cy = PLATE_PX / 2
+        max_r = max(0.0, (PLATE_PX * PLATE_CIRCLE_FRACTION / 2) - (PLATE_PIECE_PX / 2))
+        for _ in range(30):
+            dx = random.uniform(-max_r, max_r)
+            dy = random.uniform(-max_r, max_r)
+            if dx * dx + dy * dy <= max_r * max_r:
+                return cx + dx - PLATE_PIECE_PX / 2, cy + dy - PLATE_PIECE_PX / 2
+        return cx - PLATE_PIECE_PX / 2, cy - PLATE_PIECE_PX / 2
 
     # ------------------------------------------------------------- build
     def _build(self):
@@ -138,10 +194,37 @@ class SliceUI:
     def _build_bubble(self, parent):
         box = tk.Frame(parent, bg=BUBBLE_BG, highlightbackground=BUBBLE_BORDER,
                        highlightthickness=3)
-        lbl = tk.Label(box, text="", bg=BUBBLE_BG, fg=TEXT, font=("Helvetica", 14, "bold"),
-                       wraplength=260, justify="left")
-        lbl.pack(padx=14, pady=10)
-        return box, lbl
+        txt = tk.Text(box, bg=BUBBLE_BG, fg=TEXT, font=("Helvetica", 14, "bold"),
+                     wrap="word", width=24, height=3, bd=0, highlightthickness=0,
+                     cursor="arrow", state="disabled")
+        txt.tag_configure("emphasis", font=("Helvetica", 18, "bold"),
+                          foreground=EMPHASIS_COLOR, underline=True)
+        txt.pack(padx=14, pady=10)
+        return box, txt
+
+    def _render_speech(self, txt_widget, text):
+        # bySlice.py wraps a hint-level-2+ target value in UNDERLINE...
+        # UNDERLINE (a terminal escape code that does nothing in a GUI) --
+        # detect that marker and render the wrapped value with real visual
+        # emphasis instead of displaying the raw escape characters.
+        txt_widget.configure(state="normal")
+        txt_widget.delete("1.0", "end")
+        if UNDERLINE in text and text.count(UNDERLINE) >= 2:
+            before, rest = text.split(UNDERLINE, 1)
+            emphasized, after = rest.split(UNDERLINE, 1)
+            txt_widget.insert("end", before)
+            txt_widget.insert("end", emphasized, "emphasis")
+            txt_widget.insert("end", after)
+        else:
+            txt_widget.insert("end", text)
+        txt_widget.configure(state="disabled")
+
+    def _set_second_customer_visible(self, visible):
+        if visible:
+            if not self.right_zone.winfo_ismapped():
+                self.right_zone.pack(side="left", fill="both", expand=True)
+        else:
+            self.right_zone.pack_forget()
 
     def _make_button(self, parent, text, command):
         lbl = tk.Label(parent, text=text, bg=BTN_BG, fg=TEXT, font=("Helvetica", 14, "bold"),
@@ -155,13 +238,13 @@ class SliceUI:
     def speak(self, text):
         if self._closed:
             return
-        self._bubble1_text.configure(text=text)
+        self._render_speech(self._bubble1_text, text)
         self._show()
 
     def speak2(self, text):
         if self._closed:
             return
-        self._bubble2_text.configure(text=text)
+        self._render_speech(self._bubble2_text, text)
         self._show()
 
     # ------------------------------------------------------------- cutPizza
@@ -169,14 +252,12 @@ class SliceUI:
         if self._closed:
             return (1, None if denom2 is None else 1)
 
+        self._set_second_customer_visible(denom2 is not None)
         self._cut_state = {"left": 1, "right": 1}
         active = ["left"] + (["right"] if denom2 is not None else [])
 
         for key in active:
             self._render_cut_pizza(key)
-        if denom2 is None:
-            for w in self.pizza_col2.winfo_children():
-                w.destroy()
 
         submit = self._make_button(self.root, "Cut", lambda: self._done.set(1))
         submit.pack(side="bottom", pady=(6, 0))
@@ -200,16 +281,11 @@ class SliceUI:
         for w in col.winfo_children():
             w.destroy()
 
-        stack = tk.Frame(col, bg=BG, width=PIZZA_PX, height=PIZZA_PX)
-        stack.pack()
-        stack.pack_propagate(False)
-
         n = self._cut_state[key]
-        for k in range(1, n + 1):
-            lbl = tk.Label(stack, image=self._slice_photo[(n, k)], bg=BG, bd=0,
-                           highlightthickness=0, cursor="hand2")
-            lbl.place(x=0, y=0)
-            lbl.bind("<Button-1>", lambda e, kk=key: self._cycle_pizza(kk))
+        lbl = tk.Label(col, image=self._full_pizza_photo[n], bg=BG, bd=0,
+                       highlightthickness=0, cursor="hand2")
+        lbl.pack()
+        lbl.bind("<Button-1>", lambda e, kk=key: self._cycle_pizza(kk))
 
         reset_btn = self._make_button(col, "New Pizza", lambda: self._reset_pizza(key))
         reset_btn.pack(pady=(8, 0))
@@ -231,6 +307,7 @@ class SliceUI:
         if self._closed:
             return (0, None if denom2 is None else 0)
 
+        self._set_second_customer_visible(denom2 is not None)
         self._handover_denom = {"left": denom, "right": denom2}
         active = ["left"] + (["right"] if denom2 is not None else [])
         self._pizzas = {"left": [], "right": []}
@@ -238,9 +315,6 @@ class SliceUI:
 
         for key in active:
             self._new_pizza(key)
-        if denom2 is None:
-            for w in self.pizza_col2.winfo_children():
-                w.destroy()
 
         submit = self._make_button(self.root, "Hand Over", lambda: self._done.set(1))
         submit.pack(side="bottom", pady=(6, 0))
@@ -277,17 +351,19 @@ class SliceUI:
         pizzas_row.pack()
 
         for pizza_idx, pieces in enumerate(self._pizzas[key]):
-            stack = tk.Frame(pizzas_row, bg=BG, width=PIZZA_PX, height=PIZZA_PX)
-            stack.pack(side="left", padx=6)
-            stack.pack_propagate(False)
-            for piece in pieces:
-                if piece["on_plate"]:
-                    continue
-                lbl = tk.Label(stack, image=self._slice_photo[(n, piece["k"])], bg=BG, bd=0,
-                               highlightthickness=0, cursor="hand2")
-                lbl.place(x=0, y=0)
-                lbl.bind("<Button-1>",
-                        lambda e, kk=key, pi=pizza_idx: self._pizza_piece_click(kk, pi, e.x, e.y))
+            remaining_ks = [p["k"] for p in pieces if not p["on_plate"]]
+            if not remaining_ks:
+                continue
+            # Which pieces remain changes as they're clicked onto the
+            # plate, so (unlike the full pizza in cutPizza) this can't be
+            # precomputed -- composite fresh each render.
+            composited = self._composite_photo(n, remaining_ks)
+            lbl = tk.Label(pizzas_row, image=composited, bg=BG, bd=0,
+                          highlightthickness=0, cursor="hand2")
+            lbl.image = composited  # keep a reference alive, or it's GC'd
+            lbl.pack(side="left", padx=6)
+            lbl.bind("<Button-1>",
+                    lambda e, kk=key, pi=pizza_idx: self._pizza_piece_click(kk, pi, e.x, e.y))
 
         add_btn = self._make_button(col, "Add Pizza", lambda: self._new_pizza(key))
         add_btn.pack(pady=(8, 0))
@@ -295,24 +371,26 @@ class SliceUI:
         plate_box = tk.Frame(col, bg=PLATE_BG, highlightbackground=BUBBLE_BORDER,
                              highlightthickness=2)
         plate_box.pack(pady=(10, 0))
-        # The plate art IS the container the plated pieces get placed into --
-        # a separate opaque Frame stacked on top would hide the image entirely.
-        plate_grid = tk.Label(plate_box, image=self._plate_img, bg=PLATE_BG,
-                              width=PLATE_PX, height=PLATE_PX, bd=0, highlightthickness=0)
-        plate_grid.pack()
 
-        i = 0
-        for pizza_idx, pieces in enumerate(self._pizzas[key]):
-            for piece_idx, piece in enumerate(pieces):
-                if not piece["on_plate"]:
-                    continue
-                r, c = divmod(i, PLATE_PIECE_COLS)
-                lbl = tk.Label(plate_grid, image=self._slice_photo_small[(n, piece["k"])],
-                               bg=PLATE_BG, bd=0, highlightthickness=0, cursor="hand2")
-                lbl.place(x=4 + c * (PLATE_PIECE_PX + 4), y=4 + r * (PLATE_PIECE_PX + 4))
-                lbl.bind("<Button-1>",
-                        lambda e, kk=key, pi=pizza_idx, ppi=piece_idx: self._plate_piece_click(kk, pi, ppi))
-                i += 1
+        # Composite every plated piece directly onto a copy of the plate
+        # art (same technique as the pizza: separate stacked widgets don't
+        # blend transparency against each other, so the pieces have to be
+        # merged into one image to actually look like they're on the
+        # plate rather than floating in front of it).
+        plate_img = self._plate_pil.copy()
+        for pieces in self._pizzas[key]:
+            for piece in pieces:
+                if piece["on_plate"]:
+                    piece_img = self._slice_pil_plate[(n, piece["k"])]
+                    pos = (round(piece["plate_x"]), round(piece["plate_y"]))
+                    plate_img.paste(piece_img, pos, piece_img)
+        plate_photo = ImageTk.PhotoImage(plate_img)
+
+        plate_lbl = tk.Label(plate_box, image=plate_photo, bg=PLATE_BG, bd=0,
+                             highlightthickness=0, cursor="hand2")
+        plate_lbl.image = plate_photo  # keep a reference alive, or it's GC'd
+        plate_lbl.pack()
+        plate_lbl.bind("<Button-1>", lambda e, kk=key: self._plate_click(kk, e.x, e.y))
 
     def _pizza_piece_click(self, key, pizza_idx, x, y):
         if self._closed:
@@ -327,17 +405,39 @@ class SliceUI:
             pil_img = self._slice_pil[(n, piece["k"])]
             if 0 <= x < PIZZA_PX and 0 <= y < PIZZA_PX and pil_img.getpixel((x, y))[3] > 10:
                 piece["on_plate"] = True
+                piece["plate_x"], piece["plate_y"] = self._random_plate_position()
                 self._plate_count[key] += 1
                 self._render_handover(key)
                 return
 
-    def _plate_piece_click(self, key, pizza_idx, piece_idx):
+    def _plate_click(self, key, x, y):
         if self._closed:
             return
-        piece = self._pizzas[key][pizza_idx][piece_idx]
-        piece["on_plate"] = False
-        self._plate_count[key] -= 1
-        self._render_handover(key)
+        n = self._handover_denom[key]
+        # Later-placed pieces were composited last (on top), so check them
+        # first for click priority where pieces overlap -- track candidates
+        # in placement order and take the last (topmost) match.
+        hit = None
+        for pizza_idx, pieces in enumerate(self._pizzas[key]):
+            for piece_idx, piece in enumerate(pieces):
+                if not piece["on_plate"]:
+                    continue
+                # Match the rounded position _render_handover actually
+                # pastes the piece at, or hit-testing can land on the
+                # wrong pixel by up to 1px versus what's on screen.
+                px, py = round(piece["plate_x"]), round(piece["plate_y"])
+                local_x, local_y = x - px, y - py
+                if 0 <= local_x < PLATE_PIECE_PX and 0 <= local_y < PLATE_PIECE_PX:
+                    pil_img = self._slice_pil_plate[(n, piece["k"])]
+                    if pil_img.getpixel((local_x, local_y))[3] > 10:
+                        hit = (pizza_idx, piece_idx)
+        if hit is not None:
+            pizza_idx, piece_idx = hit
+            piece = self._pizzas[key][pizza_idx][piece_idx]
+            piece["on_plate"] = False
+            del piece["plate_x"], piece["plate_y"]
+            self._plate_count[key] -= 1
+            self._render_handover(key)
 
     # ------------------------------------------------------------ window
     def _show(self):

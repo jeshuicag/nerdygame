@@ -28,6 +28,11 @@ def serveCustomers(tot_rounds, time_limit, double):
 
         cutPizza(numer, denom, numer2, denom2)
 
+        ui.speak(f"Please hand me {numer}/{denom} pizza")
+        
+        if denom2:
+            ui.speak2(f"Please hand me {numer2}/{denom2} pizza")
+
         handOver(numer, denom, numer2, denom2)
 
         rounds += 1
@@ -45,10 +50,10 @@ def cutPizza(numer, denom, numer2, denom2):
         slice1, slice2 = ui.makeCuts(denom2)
 
         text = denom
-        if hint_level >= 2:
+        if hint_level >= 1:
             text = f"{UNDERLINE}{denom}{UNDERLINE}"
         text2 = denom2
-        if hint_level >= 2 and denom2:
+        if hint_level >= 1 and denom2:
             text2 = f"{UNDERLINE}{denom2}{UNDERLINE}"
 
         if slice1 < denom:
@@ -79,10 +84,10 @@ def handOver(numer, denom, numer2, denom2):
         slices1, slices2 = ui.onPlate(denom, denom2)
 
         text = numer
-        if hint_level >= 2:
+        if hint_level >= 1:
             text = f"{UNDERLINE}{numer}{UNDERLINE}"
         text2 = numer2
-        if hint_level >= 2 and numer2:
+        if hint_level >= 1 and numer2:
             text2 = f"{UNDERLINE}{numer2}{UNDERLINE}"
 
         if slices1 < numer:
@@ -101,6 +106,7 @@ def handOver(numer, denom, numer2, denom2):
 
         hint_level += 1
 
+serveCustomers(3, 180, True)
 
     
 

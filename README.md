@@ -21,6 +21,8 @@ run party: /opt/anaconda3/bin/python3.12 bdayparty.py
 
 Counter: Teach fractions by having customers ask for fractional amount of pizza. Player must cut pizza into denominator and serve correct amount. Targeted to 3/4 grade, fractions become more complex as mastery increases. Serve two customers at once to showcase value of different fractions, when fractions with different denominators are the same, etc etc.
 
+run slice: /opt/anaconda3/bin/python3.12 bySlice.py
+
 Once mastery is reached, player can hire 'employees' to automate certain skills like grocery runs or cashier. Employees can occasionally ask higher level questions and also skill check questions, and will quit if player fails skill check.
 
 Want to do:
@@ -39,4 +41,6 @@ Want to do:
 - more advanced levels (multi-digit multiplication, bigger fractions)
 
 - reinforce connection between things (smaller orders lead to less to add in next coin trade activity, using up ingredients means buying more in the next grocer run, etc)
+
+- Make pngs the same size
 
