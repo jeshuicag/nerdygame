@@ -34,9 +34,23 @@ BASE_BORDER = "#d9c9a3"
 
 ITEM_PX = 44
 ITEM_ACTIVE_PX = 60
-BASE_PX = 110
-PLACED_PX = 26
+BASE_PX = 180
+PLACED_PX = 20
 BASE_COLS = 4
+
+# Placed items are laid out in a PLACED_COLS-wide grid inside each base
+# label, starting at (PLACED_MARGIN, PLACED_MARGIN) with a pitch of
+# PLACED_PX + PLACED_GAP.  A real order can need sum(tpk) units on ONE base
+# (six toppings x up to 10 each = 60), so the grid has to hold far more than
+# the handful the old 110px/26px/3-column layout could show:
+#   rows/cols that fit = (BASE_PX - PLACED_MARGIN - PLACED_PX)
+#                        // (PLACED_PX + PLACED_GAP) + 1
+#                      = (180 - 6 - 20) // 22 + 1 = 7 + 1 = 8
+#   last slot spans 6 + 7*22 = 160 .. 180, inside the 180px base image.
+# => 8 columns x 8 rows = 64 visible slots per base (old layout: 3 x 3 = 9).
+PLACED_COLS = 8
+PLACED_GAP = 2
+PLACED_MARGIN = 6
 
 
 class PlacementBoard:
@@ -115,10 +129,15 @@ class PlacementBoard:
             base_lbl.bind("<Button-1>", lambda e, bb=b: self._click_base(bb))
 
             for i, name in enumerate(self.placements[b]):
-                row, col = divmod(i, 3)
+                row, col = divmod(i, PLACED_COLS)
+                # bd/padx/pady/highlightthickness default to a few pixels each,
+                # which would make the rendered tile wider than PLACED_PX and
+                # overlap its neighbours; zero them so the grid pitch is exact.
                 placed_lbl = tk.Label(base_lbl, image=self._item_icons_small[name], bg=BG,
-                                      cursor="hand2")
-                placed_lbl.place(x=6 + col * (PLACED_PX + 2), y=6 + row * (PLACED_PX + 2))
+                                      cursor="hand2", bd=0, padx=0, pady=0,
+                                      highlightthickness=0)
+                placed_lbl.place(x=PLACED_MARGIN + col * (PLACED_PX + PLACED_GAP),
+                                 y=PLACED_MARGIN + row * (PLACED_PX + PLACED_GAP))
                 placed_lbl.bind("<Button-1>",
                                 lambda e, bb=b, ii=i: self._click_placed(bb, ii))
 
