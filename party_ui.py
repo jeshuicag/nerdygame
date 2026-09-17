@@ -170,9 +170,13 @@ class PartyUI:
         self._show()
 
     def server(self, text, tpk, toppings):
+        if self._closed:
+            return
         self._render_bubble(text, tpk, toppings)
 
     def display(self, text, a, b):
+        if self._closed:
+            return
         self._render_bubble(text, None, None)
 
     # ----------------------------------------------------------- checklist
