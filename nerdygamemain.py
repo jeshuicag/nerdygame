@@ -10,6 +10,7 @@ from mainarea_ui import MainUI
 
 from enum import IntEnum
 
+## more readable task and coins
 class Coin(IntEnum):
     COPPER = 0
     IRON = 1
@@ -45,7 +46,10 @@ def runShop():
     coins[Coin.GOLD] = 0
     coins[Coin.DIAMOND] = 0
 
+    ## keep adding to it and cycle through tasks
     taskqueue = ["grocshop", "cointradem", "snakehunt", "cointradep"]
+
+    ## one for the entire game
 
     global ui
     ui = MainUI(image_dir="mainimages")
@@ -57,6 +61,8 @@ def runShop():
     while taskqueue:
         ui.updateTasks(taskqueue)
         ui.updateCoins(coins, mechs[Task.COIN])
+
+        ## handle each task differently
         match taskqueue.pop(0):
             case "grocshop":
                 ## 0 for 'let's go!' or play button, 1 for 'hire someone' button, which switch the text to '+1 employee'
@@ -106,6 +112,7 @@ def runShop():
                 elif curr_level_head == 1:
                     ui.note("Hm... its a shame to waste your time on snake hunting. Let's hire someone! You won't have to hunt anymore, but if the new hire asks for your help, please help them!", 1)
 
+            ## minus
             case "cointradem":
                 minusamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
@@ -126,6 +133,7 @@ def runShop():
                 
                 mechs[Task.COIN] = upgradeCoins(trades)
 
+            # plus
             case "cointradep":
                 addamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
@@ -184,7 +192,7 @@ def runShop():
                 taskqueue.append("slice")
                 taskqueue.append("cointradep")
 
-
+## helper functions
 def updateGroceryStats(items_goal, time_goal, total_items, final_time, mistakes, taskqueue):
     new_total = items_goal
     new_time = time_goal
@@ -269,6 +277,7 @@ def updateSnakeStats(lvl, time_goal, snake_goal, t_attempts, h_attempts, caught,
 
     return new_level, new_level_head, new_time, new_snake
 
+## for translating between coin arrays of size 4 and the actual value they represent
 def arrToNum(arr):
     num = arr[3] * 1000 + arr[2] * 100 + arr[1] * 10 + arr[0]
     return num
