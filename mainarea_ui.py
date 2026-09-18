@@ -1,15 +1,17 @@
 """Main hub front end for nerdygamemain.py.
 
 A single Tkinter window (reused for the whole session) with a background
-image, an "Up Next" box that always shows the next two tasks in the
-backend's task queue, and a note area used for the shopkeeper's messages
-and the occasional confirmation button.
+image, a top-left "Your Coins" box showing the current coin inventory, an
+"Up Next" box that always shows the next two tasks in the backend's task
+queue, and a note area used for the shopkeeper's messages and the
+occasional confirmation button.
 
 Usage from nerdygamemain.py:
 
     from mainarea_ui import MainUI
 
     ui = MainUI(image_dir="mainimages")
+    ui.updateCoins(coins, mechlevel)  # non-blocking, refreshes the coin display
     ui.updateTasks(taskqueue)   # non-blocking, refreshes the "Up Next" box
     ui.note("some message", 0) # blocks until "Let's go!" is clicked
     ui.note("some message", 1) # blocks until "Hire Employee" is clicked,
@@ -34,6 +36,15 @@ BTN_BG = "#ffd27f"
 BTN_ACTIVE = "#ffbe4d"
 
 HIRE_LINGER_MS = 500
+
+COIN_DIR = "coinimages"  # reused from the coin-trading game
+COIN_ICON_PX = 28
+# index order matches coin_ui.py / nerdygamemain.py's Coin enum: copper=0,
+# iron=1, gold=2, diamond=3. Rendered largest-to-smallest, left to right
+# (see updateCoins), so reading the row left-to-right and ignoring the
+# pngs gives the digits of the total in copper -- the smallest/ones-place
+# denomination, per nerdygamemain.py's arrToNum.
+COIN_NAMES = ["copper", "iron", "gold", "diamond"]
 
 TASK_LABELS = {
     "grocshop": "Go Grocery Shopping",
@@ -60,8 +71,17 @@ class MainUI:
         self._closed = False
         self._shown = False
 
+        self._load_coin_icons()
         self._build()
         self.root.withdraw()
+
+    def _load_coin_icons(self):
+        self._coin_icons = {}
+        for name in COIN_NAMES:
+            path = os.path.join(COIN_DIR, f"{name}.png")
+            img = Image.open(path).convert("RGBA")
+            img.thumbnail((COIN_ICON_PX, COIN_ICON_PX), Image.LANCZOS)
+            self._coin_icons[name] = ImageTk.PhotoImage(img)
 
     # ------------------------------------------------------------------ build
     def _build(self):
@@ -71,6 +91,11 @@ class MainUI:
         self._bg_photo = ImageTk.PhotoImage(bg_img)
         tk.Label(self.root, image=self._bg_photo, bd=0).place(
             x=0, y=0, width=WINDOW_W, height=WINDOW_H)
+
+        coins_box, coins_content = self._build_titled_box(self.root, "Your Coins")
+        coins_box.place(x=24, y=24, anchor="nw")
+        self.coins_row = tk.Frame(coins_content, bg=BOX_BG)
+        self.coins_row.pack()
 
         tasks_box, tasks_content = self._build_titled_box(self.root, "Up Next")
         tasks_box.place(relx=0.5, y=24, anchor="n")
@@ -113,6 +138,23 @@ class MainUI:
         lbl.bind("<Enter>", lambda e: lbl.configure(bg=BTN_ACTIVE))
         lbl.bind("<Leave>", lambda e: lbl.configure(bg=BTN_BG))
         return lbl
+
+    # ----------------------------------------------------------------- coins
+    def updateCoins(self, coins, mechlevel):
+        """Non-blocking refresh of the top-left coin display. Only shows
+        denominations unlocked by mechlevel, largest to smallest left to
+        right (see COIN_NAMES)."""
+        if self._closed:
+            return
+        for w in self.coins_row.winfo_children():
+            w.destroy()
+        for t in range(mechlevel, -1, -1):
+            item = tk.Frame(self.coins_row, bg=BOX_BG)
+            item.pack(side="left", padx=6)
+            tk.Label(item, image=self._coin_icons[COIN_NAMES[t]], bg=BOX_BG).pack(side="left")
+            tk.Label(item, text=str(coins[t]), bg=BOX_BG, fg=TEXT,
+                    font=("Helvetica", 14, "bold")).pack(side="left", padx=(3, 0))
+        self._show()
 
     # ---------------------------------------------------------------- tasks
     def _task_label(self, name):
