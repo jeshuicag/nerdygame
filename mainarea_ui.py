@@ -21,6 +21,8 @@ import tkinter as tk
 
 from PIL import Image, ImageTk
 
+from shared_root import get_shared_root
+
 WINDOW_W = 960
 WINDOW_H = 720
 
@@ -47,7 +49,7 @@ class MainUI:
     def __init__(self, image_dir="mainimages"):
         self.image_dir = image_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Nerdy Game")
         self.root.configure(bg=BG)
         self.root.resizable(False, False)

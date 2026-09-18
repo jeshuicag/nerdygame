@@ -24,6 +24,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 
 from placement_board import PlacementBoard
+from shared_root import get_shared_root
 
 BG = "#fdf6e3"
 TEXT = "#3b2f1e"
@@ -59,7 +60,7 @@ class PartyUI:
         self.image_dir = image_dir
         self.toppings_dir = toppings_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Birthday Party")
         self.root.configure(bg=BG)
         # Not calling resizable(False, False) here: on some platforms it

@@ -32,6 +32,8 @@ import tkinter as tk
 
 from PIL import Image, ImageTk
 
+from shared_root import get_shared_root
+
 COIN_NAMES = ["copper", "iron", "gold", "diamond"]
 
 SECTION_SLOTS = 9
@@ -60,7 +62,7 @@ class CoinUI:
     def __init__(self, image_dir="coinimages"):
         self.image_dir = image_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Coin Trade")
         self.root.configure(bg=BG)
         self.root.resizable(False, False)

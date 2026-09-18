@@ -2,9 +2,10 @@ import random
 from snake_ui import SnakeHuntUI
 import time
 
-ui = SnakeHuntUI(image_dir="snakeimages")
-
 def catchSnake(player_place, time_limit, snake_limit):
+    global ui
+    ui = SnakeHuntUI(image_dir="snakeimages")
+
     mistake_level = 0
     start_time = time.time()
     num_snakes = 0
@@ -78,7 +79,9 @@ def catchSnake(player_place, time_limit, snake_limit):
         mistake_level = max(0, mistake_level - 1)
         num_snakes += 1
 
-    return catch_tail_tries, shout_head_tries, num_snakes, time.time() - start_time
+    ui.close()
+
+    return catch_tail_tries, shout_head_count, num_snakes, time.time() - start_time
 
         
 def catch_tail(place, tail, head, direc, len):

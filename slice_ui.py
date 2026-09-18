@@ -37,6 +37,8 @@ import tkinter as tk
 
 from PIL import Image, ImageTk
 
+from shared_root import get_shared_root
+
 PARTY_IMAGE_DIR = "partyimages"  # counter.png / plate.png.webp are reused from the party game
 
 # bySlice.py wraps a hint-level-2+ target value in this exact escape
@@ -74,7 +76,7 @@ class SliceUI:
     def __init__(self, image_dir="sliceimages"):
         self.image_dir = image_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Pizza Slices")
         self.root.configure(bg=BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)

@@ -1,6 +1,5 @@
 import random
 import time
-
 from grocery_ui import GroceryShopUI
 
 mistake_level = 0
@@ -9,6 +8,9 @@ indicate_number = False
 
 
 def go_shopping(num_items, time_limit):
+    global ui
+    ui = GroceryShopUI(image_dir="shopimages")
+
     start_time = time.time()
     curr_tot = 0
     mistakes = [0, 0, 0, 0]
@@ -16,8 +18,6 @@ def go_shopping(num_items, time_limit):
     items = ["pineapple", "onion", "olive", "bellpepper", "mushroom", "butter", "cheese", "flour", "garlic", "herbs", "ketchup", "salt", "sugar", "yeast", "oil"]
     
     random.shuffle(items)
-
-    ui = GroceryShopUI(image_dir="shopimages")
     
     while (time.time() - start_time < time_limit and curr_tot < num_items):
         item = items[curr_tot]

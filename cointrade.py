@@ -1,10 +1,11 @@
 from coin_ui import CoinUI
 
-ui = CoinUI(image_dir="coinimages")
-
 ## 0 copper, 1 iron, 2 gold, 3 diamond (only available according to mechanic level)
 ## 0 player bag, 1 other bag, 2 trade area
 def coinTrade(curr, amount, add, mechlevel):
+    global ui
+    ui = CoinUI(image_dir="coinimages")
+
     num_transfers = 0
 
     curr_bank = [0,[0, 0, 0, 0]]

@@ -53,6 +53,8 @@ import tkinter as tk
 
 from PIL import Image, ImageTk
 
+from shared_root import get_shared_root
+
 BOARD_COLS = 10
 BOARD_ROWS = 12
 BOARD_SQUARES = BOARD_COLS * BOARD_ROWS  # 120
@@ -86,7 +88,7 @@ class SnakeHuntUI:
     def __init__(self, image_dir="snakeimages"):
         self.image_dir = image_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Snake Hunt")
         self.root.configure(bg=BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)

@@ -27,6 +27,8 @@ from tkinter import font as tkfont
 
 from PIL import Image, ImageTk
 
+from shared_root import get_shared_root
+
 CARD_COUNT = 20
 ICON_COLS = 5          # icons per row on a card -> stacked ten-frames
 ICON_PX = 26           # icon size on a card
@@ -50,7 +52,7 @@ class GroceryShopUI:
     def __init__(self, image_dir="images"):
         self.image_dir = image_dir
 
-        self.root = tk.Tk()
+        self.root = tk.Toplevel(get_shared_root())
         self.root.title("Grocery Store")
         self.root.configure(bg=BG)
         self.root.resizable(False, False)

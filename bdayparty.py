@@ -1,9 +1,10 @@
 import random
 from party_ui import PartyUI
 
-ui = PartyUI(image_dir="partyimages", toppings_dir="shopimages")
-
 def playParty(num_kids):
+    global ui
+    ui = PartyUI(image_dir="partyimages", toppings_dir="shopimages")
+
     toppings = ["pineapple", "onion", "olive", "bellpepper", "mushroom", "pepperoni"]
     top_inventory = []
     top_per_kid =[]
@@ -23,6 +24,8 @@ def playParty(num_kids):
     cakes = num_kids * per_kid + remainder
 
     num_cupcake_mistakes, num_rem_mistakes = splitCupcakes(num_kids, cakes, per_kid, remainder)
+
+    ui.close()
 
     return num_enough_mistakes, num_inv_mistakes, num_cupcake_mistakes, num_rem_mistakes
 

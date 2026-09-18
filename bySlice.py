@@ -2,12 +2,13 @@ from slice_ui import SliceUI
 import time
 import random
 
-ui = SliceUI(image_dir="sliceimages")
-
 UNDERLINE = '\033[4m'
 
 ## double means two customers at once
 def serveCustomers(tot_rounds, time_limit, double):
+    global ui
+    ui = SliceUI(image_dir="sliceimages")
+
     start_time = time.time()
     rounds = 0
 
@@ -41,6 +42,8 @@ def serveCustomers(tot_rounds, time_limit, double):
         plate_hints.append(plate_hint)
 
         rounds += 1
+
+    ui.close()
 
     return cut_hints, plate_hints, time.time() - start_time, rounds
     

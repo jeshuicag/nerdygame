@@ -10,8 +10,6 @@ from mainarea_ui import MainUI
 
 from enum import IntEnum
 
-ui = MainUI(image_dir="mainimages")
-
 class Coin(IntEnum):
     COPPER = 0
     IRON = 1
@@ -26,6 +24,9 @@ class Task(IntEnum):
     COUNTER = 4
 
 def runShop():
+    global ui
+    ui = MainUI(image_dir="mainimages")
+
     ## track where players are in each mechanic
     global mechs 
     mechs = [None] * 5
@@ -64,7 +65,10 @@ def runShop():
                 curr_time_goal = mechs[Task.GROCERY][2]
 
                 if level == 0:
+                    ui.close()
                     total_completed, final_time, mistakes = grocshop.go_shopping(curr_total_goal, curr_time_goal)
+                    ui = MainUI(image_dir="mainimages")
+
                     mechs[Task.GROCERY][1], mechs[Task.GROCERY][2] = updateGroceryStats(curr_total_goal, curr_time_goal, total_completed, final_time, mistakes)
                     taskqueue.append("grocshop")
                     taskqueue.append("cointradem")
@@ -76,7 +80,7 @@ def runShop():
                     mechs[Task.PARTY] = 2
                     taskqueue.append("slice")
                     taskqueue.append("cointradep")
-                    mechs[Task.COUNTER] = 0
+                    mechs[Task.COUNTER][0] = 0
                     ui.note("Hm... its a shame to waste your time on grocery shopping. Let's hire someone! You won't have to shop anymore, but if the new hire asks for your help, please help them!", 1)
             
             case "snakehunt":
@@ -93,7 +97,10 @@ def runShop():
                 curr_snake_goal = mechs[Task.SNAKE][3]
 
                 if curr_level_head == 0:
+                    ui.close()
                     t_attempts, h_attempts, snakes_caught, final_time = snakehunt.catchSnake(start_point, curr_time_goal, curr_snake_goal)
+                    ui = MainUI(image_dir="mainimages")
+                    
                     mechs[Task.SNAKE][0], mechs[Task.SNAKE][1], mechs[Task.SNAKE][2], mechs[Task.SNAKE][3] = updateSnakeStats(curr_level_tail, curr_time_goal, curr_snake_goal, t_attempts, h_attempts, snakes_caught, final_time)
                     taskqueue.append("snakehunt")
 
@@ -114,8 +121,10 @@ def runShop():
                 else:
                     ui.note(f"The shopper needs money groceries! Put {arrToNum(minusamount)} in the extras bag for them.", 0)
 
+                ui.close()
                 coins, trades = cointrade.coinTrade(coins, minusamount, False, mechlevel)
-
+                ui = MainUI(image_dir="mainimages")
+                
                 mechs[Task.COIN] = upgradeCoins(trades)
 
             case "cointradep":
@@ -128,7 +137,9 @@ def runShop():
                     addamount = numToArr(arrToNum(addamount) // 2)
 
                 ui.note(f"We made some money! Fit {arrToNum(addamount)} more into our bag.", 0)
+                ui.close()
                 coins, trades = cointrade.coinTrade(coins, addamount, True, mechlevel)
+                ui = MainUI(image_dir="mainimages")
 
                 mechs[Task.COIN] = upgradeCoins(trades)
 
@@ -140,7 +151,9 @@ def runShop():
                     num_kids = random.randint(2, max_kids)
                     ui.note(f"A party with {num_kids} just came in! A server will take their order, you'll make the pizzas!", 0)
 
+                    ui.close()
                     enough, needed, cupcakes, rem = bdayparty.playParty(num_kids)
+                    ui = MainUI(image_dir="mainimages")
 
                     mechs[Task.PARTY] = updateParty(enough, needed, cupcakes, rem, num_kids)
 
@@ -159,7 +172,9 @@ def runShop():
                 tot_rounds = mechs[Task.COUNTER][1]
                 time_limit = mechs[Task.COUNTER][2]
 
+                ui.close()
                 cut, plate, time, actual_rounds = bySlice.serveCustomers(tot_rounds, time_limit, double)
+                ui = MainUI(image_dir="mainimages")
 
                 updateSlice(cut, plate, time, actual_rounds, double)
 
