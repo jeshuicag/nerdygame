@@ -162,7 +162,7 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
     return fails
 
 # for testing
-playParty(3)
+# playParty(3)
 
 
     
