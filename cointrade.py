@@ -132,7 +132,7 @@ def tryTrade(bank, level):
             temp_bank[coinWanted] = 1
             ui.warn("trade successful!")
             return temp_bank
-            
+
     ## level is highest current denomination, can't trade up
     if not coinWanted == level:
         if temp_bank[coinWanted + 1] == 1 and sum(temp_bank) == 1:
@@ -144,5 +144,5 @@ def tryTrade(bank, level):
     return temp_bank
             
 # for testing
-coinTrade([0,1,0,0], [2,0,0,0], False, 1)
+# coinTrade([0,1,0,0], [2,0,0,0], False, 1)
 

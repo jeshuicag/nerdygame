@@ -24,8 +24,6 @@ class Task(IntEnum):
     COUNTER = 4
 
 def runShop():
-    global ui
-    ui = MainUI(image_dir="mainimages")
 
     ## track where players are in each mechanic
     global mechs 
@@ -49,10 +47,16 @@ def runShop():
 
     taskqueue = ["grocshop", "cointradem", "snakehunt", "cointradep"]
 
+    global ui
+    ui = MainUI(image_dir="mainimages")
+    ui.updateTasks(taskqueue)
+    ui.updateCoins(coins, mechs[Task.COIN])
+
     ui.note("This pizza shop is now yours-- stock it, run it, and make money!", 0)
 
     while taskqueue:
         ui.updateTasks(taskqueue)
+        ui.updateCoins(coins, mechs[Task.COIN])
         match taskqueue.pop(0):
             case "grocshop":
                 ## 0 for 'let's go!' or play button, 1 for 'hire someone' button, which switch the text to '+1 employee'

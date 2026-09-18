@@ -5,7 +5,9 @@ def playParty(num_kids):
     global ui
     ui = PartyUI(image_dir="partyimages", toppings_dir="shopimages")
 
+    ## only the ones that i think make sense as toppings (ie, not salt, sugar, oil, etc)
     toppings = ["pineapple", "onion", "olive", "bellpepper", "mushroom", "pepperoni"]
+    
     top_inventory = []
     top_per_kid =[]
 
@@ -15,14 +17,18 @@ def playParty(num_kids):
         top_per_kid.append(tpk)
         top_inventory.append(random.randint(0, num_kids*tpk*2))
 
+    # check if enough
     mistakes, num_enough_mistakes = askIfEnough(num_kids, top_per_kid, top_inventory, toppings)
 
+    # ask for how much more is needed
     num_inv_mistakes = howMuchMoreNeeded(num_kids, top_per_kid, top_inventory, mistakes, toppings)
 
+    # randomize amount of cupcakes
     per_kid = random.randint(1,5)
     remainder = random.randint(0, num_kids - 1)
     cakes = num_kids * per_kid + remainder
 
+    # ask about cupcakes
     num_cupcake_mistakes, num_rem_mistakes = splitCupcakes(num_kids, cakes, per_kid, remainder)
 
     ui.close()
@@ -30,6 +36,7 @@ def playParty(num_kids):
     return num_enough_mistakes, num_inv_mistakes, num_cupcake_mistakes, num_rem_mistakes
 
 
+##  phase 3, cupcake event
 def splitCupcakes(num_kids, num_cakes, pkid, rem):
     allow_cupcake_visual = False
     answer1 = 0
@@ -64,16 +71,23 @@ def splitCupcakes(num_kids, num_cakes, pkid, rem):
 
     return fails, rem_fails
 
+# phase 1, checklist event
 def askIfEnough(num_kids, tpk, t_inv, toppings):
+
     ## 0 is has enough and said enough, 1 is has enough but didn't say that, 
     ## 2 is too little and answered too little, 3 is too little but didn't answer that
     mistakes = [-1 for i in range(len(tpk))]
+
     allow_pizza_visual = False
+
+    # data for later calculation of mechlevel
     fails = 0
 
     ui.server(f"Order up! We have a party with {num_kids} kids. Everyone wants this amount of toppings:", tpk, toppings)
 
     while not all(mistake%2 == 0 for mistake in mistakes):
+
+        # different hint levels, eventually switch between two just to indicate submission was acknowledged
         if fails == 1:
             allow_pizza_visual = True
             ui.server(f"Why don't you go ahead and starting making the order. Let me know what ingredients you need more of. Remember, there are {num_kids} kids, and each one wants the same things on their pizza:", tpk, toppings)
@@ -81,9 +95,11 @@ def askIfEnough(num_kids, tpk, t_inv, toppings):
             ui.server(f"Try putting one piece per pizza until each pizza has enough. If you can't, we don't have enough! Remember, there are {num_kids} kids, and each one wants the same things on their pizza:", tpk, toppings)
         elif fails % 2 == 1:
             ui.server(f"That doesn't seem right... Remember, there are {num_kids} kids, and each one wants the same things on their pizza:", tpk, toppings)
+        
         ## should return array of 0 and 1 that parallels toppings list that indicates if player said its enough (0) or not enough (1)
         enough = ui.askEnough(num_kids, tpk, t_inv, mistakes, toppings, allow_pizza_visual)
 
+        ## check answer and update mistakes
         for i, inStorage in enumerate(t_inv):
             if inStorage >= tpk[i] * num_kids and enough[i] == 0:
                 mistakes[i] = 0
@@ -98,16 +114,23 @@ def askIfEnough(num_kids, tpk, t_inv, toppings):
 
     return mistakes, fails
 
+# phase 2, shopping list event
 def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
+
     # 0 for correct amount, 1 for too much added, 2 for too little
     warnings = [-1 for i in range(len(toppings))]
+
+    # store answers the player gives
     added = [0 for i in range(len(toppings))]
+
     allow_pizza_visual = False
     fails = 0
 
     ui.server(f"Alright! How much more of those do you need, exactly? Make me a list, I'll do a quick grocery run. I only have a little bit of money, though, so we can't buy more than we need. Remember, there are {kids} kids and each one wants the same order!", tpk, toppings)
 
     while sum(warnings) != 0:
+
+        # hint levels
         # should return how much of each item the player is trying to add.
         ## prompt should take the indexes in mistakes with values 2 (parallel array to toppings) to ask the player how much more is needed.
         if fails == 1:
