@@ -128,7 +128,8 @@ class SnakeHuntUI:
 
         self._imgs["player_right"] = load("player")
         self._imgs["player_left"] = load("player", flip=True)
-        self._imgs["head"] = load("head")
+        self._imgs["head"] = load("head")              # points left, away from a tail to its right
+        self._imgs["head_flip"] = load("head", flip=True)  # away from a tail to its left
         self._imgs["tail"] = load("tail")            # points right, away from a head to its left
         self._imgs["tail_flip"] = load("tail", flip=True)  # away from a head to its right
         self._imgs["body"] = load("body")
@@ -493,7 +494,9 @@ class SnakeHuntUI:
             for n in range(lo, hi + 1):
                 cell = self._square_canvases[n]
                 if n == self.snake_head:
-                    img = self._imgs["head"]
+                    # point away from wherever the tail currently is
+                    img = (self._imgs["head_flip"] if self.snake_head > self.snake_tail
+                           else self._imgs["head"])
                 elif n == self.snake_tail:
                     # point away from wherever the head currently is
                     img = (self._imgs["tail_flip"] if self.snake_head > self.snake_tail

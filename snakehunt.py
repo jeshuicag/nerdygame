@@ -2,10 +2,12 @@ import random
 from snake_ui import SnakeHuntUI
 import time
 
+## function to call in main
 def catchSnake(player_place, time_limit, snake_limit):
     global ui
     ui = SnakeHuntUI(image_dir="snakeimages")
 
+    # trackers
     mistake_level = 0
     start_time = time.time()
     num_snakes = 0
@@ -13,6 +15,7 @@ def catchSnake(player_place, time_limit, snake_limit):
     snake_head = 0
     snake_len = 0
 
+    # data for adjusting difficulty after round
     catch_tail_tries = []
     shout_head_count = [0, 0, 0, 0]
 
@@ -69,7 +72,9 @@ def catchSnake(player_place, time_limit, snake_limit):
 
         catch_tail_tries.append([num_tries_tail, distance])
         
+        ## for debugging
         ## print(f"Player: {player_place}, Dir: {direction}, Dist: {dist}, Tail: {snake_tail}, Len: {snake_len}, Head: {snake_head}")
+        
         # signal the head
         while shout_head(snake_tail, snake_head, mistake_level, snake_len) != snake_head:
             mistake_level = min(mistake_level + 1, 3)
@@ -83,11 +88,12 @@ def catchSnake(player_place, time_limit, snake_limit):
 
     return catch_tail_tries, shout_head_count, num_snakes, time.time() - start_time
 
-        
+## wait for player answer and return player's new position       
 def catch_tail(place, tail, head, direc, len):
     answer = ui.asktail(place, tail, head)
     return max(1, min(120, place + answer))
 
+## wait for player's answer and return it
 def shout_head(tail, head, mis_level, len):
     answer = ui.askhead(tail, head, mis_level, len)
     return answer

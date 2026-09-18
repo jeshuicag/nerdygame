@@ -113,7 +113,7 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
         if fails == 1:
             allow_pizza_visual = True
             ui.server(f"Start making the pizzas and let me know how much more of each ingredient you need! Remember, there are {kids} kids and each wants:", tpk, toppings)
-        elif fails%2 == 0:
+        elif fails != 0 and fails%2 == 0:
             ui.server(f"Try putting one piece per pizza until each pizza has enough. Then count how many more you need per pizza and add them up! Remember, there are {kids} kids, and each one wants the same things on their pizza:", tpk, toppings)
         elif fails%2 == 1:
             ui.server(f"You can also make one pizza at a time until you run out of ingredients! Remember, there are {kids} kids, and each one wants the same things on their pizza:", tpk, toppings)

@@ -47,7 +47,7 @@ def runShop():
     coins[Coin.GOLD] = 0
     coins[Coin.DIAMOND] = 0
 
-    taskqueue = ["grocshop", "snakehunt", "cointradem"]
+    taskqueue = ["grocshop", "cointradem", "snakehunt", "cointradep"]
 
     ui.note("This pizza shop is now yours-- stock it, run it, and make money!", 0)
 
@@ -69,18 +69,11 @@ def runShop():
                     total_completed, final_time, mistakes = grocshop.go_shopping(curr_total_goal, curr_time_goal)
                     ui = MainUI(image_dir="mainimages")
 
-                    mechs[Task.GROCERY][1], mechs[Task.GROCERY][2] = updateGroceryStats(curr_total_goal, curr_time_goal, total_completed, final_time, mistakes)
+                    mechs[Task.GROCERY][1], mechs[Task.GROCERY][2] = updateGroceryStats(curr_total_goal, curr_time_goal, total_completed, final_time, mistakes, taskqueue)
                     taskqueue.append("grocshop")
                     taskqueue.append("cointradem")
 
                 elif level == 1:
-                    ## party and slice becomes available once counting is mastered. 
-                    taskqueue.append("party")
-                    taskqueue.append("cointradep")
-                    mechs[Task.PARTY] = 2
-                    taskqueue.append("slice")
-                    taskqueue.append("cointradep")
-                    mechs[Task.COUNTER][0] = 0
                     ui.note("Hm... its a shame to waste your time on grocery shopping. Let's hire someone! You won't have to shop anymore, but if the new hire asks for your help, please help them!", 1)
             
             case "snakehunt":
@@ -103,6 +96,8 @@ def runShop():
                     
                     mechs[Task.SNAKE][0], mechs[Task.SNAKE][1], mechs[Task.SNAKE][2], mechs[Task.SNAKE][3] = updateSnakeStats(curr_level_tail, curr_time_goal, curr_snake_goal, t_attempts, h_attempts, snakes_caught, final_time)
                     taskqueue.append("snakehunt")
+                    if mechs[Task.PARTY] == -1:
+                        taskqueue.append("cointradep")
 
                 elif curr_level_head == 1:
                     ui.note("Hm... its a shame to waste your time on snake hunting. Let's hire someone! You won't have to hunt anymore, but if the new hire asks for your help, please help them!", 1)
@@ -111,10 +106,10 @@ def runShop():
                 minusamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
                 for i in range(mechlevel + 1):
-                    minusamount[3 - i] = random.randint(0, coins[3 - i]//2)
+                    minusamount[i] = random.randint(1, coins[i]//2)
 
                 if arrToNum(coins) < arrToNum(minusamount):
-                    minusamount = coins.copy()
+                    minusamount = max(1, arrToNum(coins) - 2)
 
                 if mechs[Task.GROCERY][0] == 0:
                     ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the extras bag.", 0)
@@ -131,12 +126,16 @@ def runShop():
                 addamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
                 for i in range(mechlevel + 1):
-                    addamount[3 - i] = random.randint(0, coins[3 - i]//2)
+                    addamount[i] = random.randint(0, coins[i]//2)
 
                 while arrToNum(coins) + arrToNum(addamount) > 10**(mechlevel + 1):
-                    addamount = numToArr(arrToNum(addamount) // 2)
+                    addamount = numToArr(max(arrToNum(addamount) // 2, 1))
 
-                ui.note(f"We made some money! Fit {arrToNum(addamount)} more into our bag.", 0)
+                if mechs[Task.PARTY] == -1:
+                    ui.note(f"We found some money on the ground! Fit {arrToNum(addamount)} more into our bag.", 0)
+                else:
+                    ui.note(f"We made some money! Fit {arrToNum(addamount)} more into our bag.", 0)
+
                 ui.close()
                 coins, trades = cointrade.coinTrade(coins, addamount, True, mechlevel)
                 ui = MainUI(image_dir="mainimages")
@@ -182,7 +181,7 @@ def runShop():
                 taskqueue.append("cointradep")
 
 
-def updateGroceryStats(items_goal, time_goal, total_items, final_time, mistakes):
+def updateGroceryStats(items_goal, time_goal, total_items, final_time, mistakes, taskqueue):
     new_total = items_goal
     new_time = time_goal
 
@@ -201,7 +200,19 @@ def updateGroceryStats(items_goal, time_goal, total_items, final_time, mistakes)
             new_total = min(15, total_items + 3)
         else:
             new_time = max(30, final_time - 20)
-        if total_items == 15 and final_time <= 90:
+
+        ## good enough to start party
+        if total_items >= 6 and items_goal == total_items == mistakes[0] and mechs[Task.PARTY] == -1:
+            ## party and slice become available  
+            taskqueue.append("party")
+            taskqueue.append("cointradep")
+            mechs[Task.PARTY] = 2
+            taskqueue.append("slice")
+            taskqueue.append("cointradep")
+            mechs[Task.COUNTER][0] = 0
+        
+        ## mastery achieved
+        if total_items >= 15 and final_time <= 90:
             ## This is the only one where time is considered for mastery because the goal is immediate recognition, without counting.
             mechs[Task.GROCERY][0] = 1
 
@@ -242,7 +253,7 @@ def updateSnakeStats(lvl, time_goal, snake_goal, t_attempts, h_attempts, caught,
         else:
              new_time = max(30, final_time - 20)
         ## if no mistakes and all snakes caught, consider mastered
-        if h_attempts[0] == caught and caught >= 10:
+        if h_attempts[0] == caught and caught >= 9:
             new_level_head = 1
 
     ## promote to 1 no matter what so that now the player doesn't necessarily start at square 0
@@ -255,18 +266,18 @@ def updateSnakeStats(lvl, time_goal, snake_goal, t_attempts, h_attempts, caught,
     return new_level, new_level_head, new_time, new_snake
 
 def arrToNum(arr):
-    num = arr[3] + arr[2] * 10 + arr[1] * 100 + arr[0] * 1000
+    num = arr[3] * 1000 + arr[2] * 100 + arr[1] * 10 + arr[0]
     return num
 
 def numToArr(num):
     working = num
-    index = 3
+    index = 0
     toReturn = [0,0,0,0]
 
     while working != 0:
         toReturn[index] = working % 10
         working = working // 10
-        index -= 1
+        index += 1
 
     return toReturn
 
@@ -277,11 +288,15 @@ def upgradeCoins(trades):
             if trades <= 1: 
                 return 1
         case 1:
-            if trades <= 4:
+            if trades <= 4 and coins[1] != 0:
                 return 2
+            else:
+                return 1
         case 2:
-            if trades <= 6:
+            if trades <= 6 and coins[2] != 0:
                 return 3
+            else:
+                return 2
         case 3:
             return 3
 
