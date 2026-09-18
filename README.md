@@ -25,6 +25,8 @@ run slice: /opt/anaconda3/bin/python3.12 bySlice.py
 
 Once mastery is reached, player can hire 'employees' to automate certain skills like grocery runs or cashier. Employees can occasionally ask higher level questions and also skill check questions, and will quit if player fails skill check.
 
+run overall: /opt/anaconda3/bin/python3.12 nerdygamemain.py
+
 Want to do:
 - make cleaner backend/ frontend distinction. Front end should be simpler, backend should handle all logic. Some visual implementations that don't exist without a front end need extra logic and are currently implemented in the front end completely. Move it over to the backend. cointrade.py is the best example of a clean front end/ back end split.
 
@@ -39,8 +41,13 @@ Want to do:
 - employee system
 
 - more advanced levels (multi-digit multiplication, bigger fractions)
+    - currently, level difference just means hiring an employee (AKA mastery achieved)
 
 - reinforce connection between things (smaller orders lead to less to add in next coin trade activity, using up ingredients means buying more in the next grocer run, etc)
 
 - Make pngs the same size
+
+- audio
+
+- update functions in nerdygamemains not consistent with returning values for update or updating inside function, make more consistent
 

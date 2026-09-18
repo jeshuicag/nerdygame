@@ -1,4 +1,5 @@
 import random
+import time
 
 from grocery_ui import GroceryShopUI
 
@@ -7,36 +8,44 @@ indicate_direction = False
 indicate_number = False
 
 
-def go_shopping(num_items):
+def go_shopping(num_items, time_limit):
+    start_time = time.time()
+    curr_tot = 0
+    mistakes = [0, 0, 0, 0]
 
     items = ["pineapple", "onion", "olive", "bellpepper", "mushroom", "butter", "cheese", "flour", "garlic", "herbs", "ketchup", "salt", "sugar", "yeast", "oil"]
     
     random.shuffle(items)
 
     ui = GroceryShopUI(image_dir="shopimages")
-    try:
-        for i, item in enumerate(items):
-            prompt = random.randint(1, 20)
+    
+    while (time.time() - start_time < time_limit and curr_tot < num_items):
+        item = items[curr_tot]
+        prompt = random.randint(1, 20)
+        answer = 0
 
-            while True and i < num_items:
-                # receive answer from the card the player locks in
-                answer = ui.ask(
-                    prompt,
-                    item,
-                    indicate_direction=indicate_direction,
-                    indicate_number=indicate_number,
-                )
+        while answer != prompt:
+            answer = ui.ask(
+                prompt,
+                item,
+                indicate_direction=indicate_direction,
+                indicate_number=indicate_number,
+            )
 
-                if answer is None:          # player closed the window
-                    return
+            if answer == None:
+                ui.close()
+                return curr_tot, time.time() - start_time, mistakes
 
-                if answer == prompt:
-                    change_mistake_level(max(0, mistake_level - 1))
-                    break
-                else:
-                    change_mistake_level(min(3, mistake_level + 1))
-    finally:
-        ui.close()
+            if answer != prompt:
+                change_mistake_level(min(3, mistake_level + 1))
+
+        mistakes[mistake_level] += 1
+        change_mistake_level(max(0, mistake_level - 1))
+            
+        curr_tot += 1
+
+    ui.close()
+    return curr_tot, time.time() - start_time, mistakes
 
 
 def change_mistake_level(new_level):
@@ -55,4 +64,4 @@ def change_mistake_level(new_level):
                 indicate_number = True
 
 
-go_shopping(10)
+## go_shopping(10, 120)

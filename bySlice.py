@@ -11,6 +11,9 @@ def serveCustomers(tot_rounds, time_limit, double):
     start_time = time.time()
     rounds = 0
 
+    cut_hints = []
+    plate_hints = []
+
     while (rounds < tot_rounds and time.time() - start_time < time_limit):
         denom = random.randint(1, 5)
         numer = random.randint(1, denom * 2)
@@ -26,16 +29,20 @@ def serveCustomers(tot_rounds, time_limit, double):
         if denom2:
             ui.speak2(f"I'd like {numer2}/{denom2} pizza")
 
-        cutPizza(numer, denom, numer2, denom2)
+        cut_hint = cutPizza(numer, denom, numer2, denom2)
+        cut_hints.append(cut_hint)
 
         ui.speak(f"Please hand me {numer}/{denom} pizza")
         
         if denom2:
             ui.speak2(f"Please hand me {numer2}/{denom2} pizza")
 
-        handOver(numer, denom, numer2, denom2)
+        plate_hint = handOver(numer, denom, numer2, denom2)
+        plate_hints.append(plate_hint)
 
         rounds += 1
+
+    return cut_hints, plate_hints, time.time() - start_time, rounds
     
 def cutPizza(numer, denom, numer2, denom2):
     slice1 = 0
@@ -72,6 +79,8 @@ def cutPizza(numer, denom, numer2, denom2):
 
         hint_level += 1
 
+    return hint_level
+
 def handOver(numer, denom, numer2, denom2):
     slices1 = 0
     slices2 = 0
@@ -105,8 +114,10 @@ def handOver(numer, denom, numer2, denom2):
                 ui.speak2("Thanks!")
 
         hint_level += 1
+    
+    return hint_level
 
-serveCustomers(3, 180, True)
+## serveCustomers(3, 180, True)
 
     
 

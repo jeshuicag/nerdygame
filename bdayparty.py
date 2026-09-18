@@ -14,15 +14,18 @@ def playParty(num_kids):
         top_per_kid.append(tpk)
         top_inventory.append(random.randint(0, num_kids*tpk*2))
 
-    mistakes = askIfEnough(num_kids, top_per_kid, top_inventory, toppings)
+    mistakes, num_enough_mistakes = askIfEnough(num_kids, top_per_kid, top_inventory, toppings)
 
-    howMuchMoreNeeded(num_kids, top_per_kid, top_inventory, mistakes, toppings)
+    num_inv_mistakes = howMuchMoreNeeded(num_kids, top_per_kid, top_inventory, mistakes, toppings)
 
     per_kid = random.randint(1,5)
     remainder = random.randint(0, num_kids - 1)
     cakes = num_kids * per_kid + remainder
 
-    splitCupcakes(num_kids, cakes, per_kid, remainder)
+    num_cupcake_mistakes, num_rem_mistakes = splitCupcakes(num_kids, cakes, per_kid, remainder)
+
+    return num_enough_mistakes, num_inv_mistakes, num_cupcake_mistakes, num_rem_mistakes
+
 
 def splitCupcakes(num_kids, num_cakes, pkid, rem):
     allow_cupcake_visual = False
@@ -46,15 +49,17 @@ def splitCupcakes(num_kids, num_cakes, pkid, rem):
         fails += 1
 
     text = f"{answer1} per kid...how many does that leave for us to eat?"
-    fails = 0
+    rem_fails = 0
 
     while answer2 != rem:
-        if fails >= 1:
+        if rem_fails >= 1:
             text = f"Hm..check again. After we give each kid {pkid}, how many are left?"
         ui.display(text, None, None)
         answer2 = ui.quest(allow_cupcake_visual, num_kids, num_cakes)
         allow_cupcake_visual = True
-        fails += 1
+        rem_fails += 1
+
+    return fails, rem_fails
 
 def askIfEnough(num_kids, tpk, t_inv, toppings):
     ## 0 is has enough and said enough, 1 is has enough but didn't say that, 
@@ -88,7 +93,7 @@ def askIfEnough(num_kids, tpk, t_inv, toppings):
         
         fails += 1
 
-    return mistakes
+    return mistakes, fails
 
 def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
     # 0 for correct amount, 1 for too much added, 2 for too little
@@ -125,8 +130,10 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
         
         fails+=1
 
+    return fails
 
-playParty(3)
+
+## playParty(3)
 
 
     

@@ -5,6 +5,8 @@ ui = CoinUI(image_dir="coinimages")
 ## 0 copper, 1 iron, 2 gold, 3 diamond (only available according to mechanic level)
 ## 0 player bag, 1 other bag, 2 trade area
 def coinTrade(curr, amount, add, mechlevel):
+    num_transfers = 0
+
     curr_bank = [0,[0, 0, 0, 0]]
     curr_bag = curr
     extras = [0,0,0,0]
@@ -67,6 +69,8 @@ def coinTrade(curr, amount, add, mechlevel):
                 if place == 2:
                     curr_bank[1] = [x - y for x, y in zip(curr_bank[1], coinsToSubtract)]
 
+        num_transfers += 1
+
     if sum(curr_bank[1]) > 0:
         curr_bag = [x + y for x, y in zip(curr_bag, curr_bank[1])]
         curr_bank[1] = [0,0,0,0]
@@ -75,7 +79,7 @@ def coinTrade(curr, amount, add, mechlevel):
     ui.warn("You did it!")
     ui.close(2000)
 
-    return curr_bag
+    return curr_bag, num_transfers
 
 ## figure out how much of each coin type is actually moved
 def validSelected(selected, dest):
@@ -129,5 +133,5 @@ def tryTrade(bank, level):
     ui.warn("The trade center requires exact change")
     return temp_bank
             
-saved = coinTrade([0,1,0,0], [2,0,0,0], False, 1)
+## saved = coinTrade([0,1,0,0], [2,0,0,0], False, 1)
 

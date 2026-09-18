@@ -2,16 +2,18 @@ import random
 from snake_ui import SnakeHuntUI
 import time
 
-catch_head_mistake_level = 0
-
 ui = SnakeHuntUI(image_dir="snakeimages")
 
-def catchSnake(player_place, mistake_level, time_limit, snake_limit):
+def catchSnake(player_place, time_limit, snake_limit):
+    mistake_level = 0
     start_time = time.time()
     num_snakes = 0
     snake_tail = 0
     snake_head = 0
     snake_len = 0
+
+    catch_tail_tries = []
+    shout_head_count = [0, 0, 0, 0]
 
     ## keep session short for attention span
     while time.time() - start_time < time_limit and num_snakes < snake_limit:
@@ -43,12 +45,13 @@ def catchSnake(player_place, mistake_level, time_limit, snake_limit):
 
         # catch the tail
         num_tries_tail = 0
+        
+        distance = player_place - snake_tail
 
         while player_place != snake_tail:
-            print(f"Player: {player_place}, Dir: {direction}, Dist: {dist}, Tail: {snake_tail}, Len: {snake_len}, Head: {snake_head}")
+            ## print(f"Player: {player_place}, Dir: {direction}, Dist: {dist}, Tail: {snake_tail}, Len: {snake_len}, Head: {snake_head}")
             old_place = player_place
             player_place = catch_tail(player_place, snake_tail, snake_head, direction, snake_len)
-
 
             if player_place <= 120 and player_place >= 1:
                 ui.moveplayer(player_place)
@@ -62,14 +65,20 @@ def catchSnake(player_place, mistake_level, time_limit, snake_limit):
                 direction = temp
 
             num_tries_tail += 1
+
+        catch_tail_tries.append([num_tries_tail, distance])
         
-        print(f"Player: {player_place}, Dir: {direction}, Dist: {dist}, Tail: {snake_tail}, Len: {snake_len}, Head: {snake_head}")
+        ## print(f"Player: {player_place}, Dir: {direction}, Dist: {dist}, Tail: {snake_tail}, Len: {snake_len}, Head: {snake_head}")
         # signal the head
         while shout_head(snake_tail, snake_head, mistake_level, snake_len) != snake_head:
             mistake_level = min(mistake_level + 1, 3)
 
+        shout_head_count[mistake_level] += 1
+
         mistake_level = max(0, mistake_level - 1)
         num_snakes += 1
+
+    return catch_tail_tries, shout_head_tries, num_snakes, time.time() - start_time
 
         
 def catch_tail(place, tail, head, direc, len):
@@ -89,10 +98,10 @@ def checkplace(place, head, tail):
     if place > head:
         return -1
 
-try:
-    catchSnake(1, catch_head_mistake_level, 120, 5)
-finally:
-    ui.close()
+# try:
+#     catchSnake(1, 120, 5)
+# finally:
+#     ui.close()
 
 
 
