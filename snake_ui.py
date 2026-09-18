@@ -108,6 +108,7 @@ class SnakeHuntUI:
         self.guess_square = None    # set only once a head guess is confirmed
         self._input_locked = False  # true while a confirmed guess is being shown
         self.wrong_guesses = set()  # squares already guessed wrong for this snake
+        self.snakes_caught = 0      # fully caught (tail + head) so far this round
 
         self._imgs = {}
         self._square_canvases = {}
@@ -155,6 +156,7 @@ class SnakeHuntUI:
         self.sub_lbl.pack()
 
         self._build_tail_header()
+        self._build_caught_overlay()
         self._build_board()
         self._build_controls()
 
@@ -176,12 +178,24 @@ class SnakeHuntUI:
         own bubble on the board instead (see _draw_place_bubble)."""
         self.tail_header = tk.Frame(self.header_slot, bg=BG)
 
-        self.player_num_lbl = tk.Label(self.tail_header, text="", bg=BG, fg=TEXT,
+        expr_row = tk.Frame(self.tail_header, bg=BG)
+        expr_row.pack()
+        self.player_num_lbl = tk.Label(expr_row, text="", bg=BG, fg=TEXT,
                                        font=("Helvetica", 44, "bold"))
         self.player_num_lbl.pack(side="left")
-        self.tail_readout = tk.Label(self.tail_header, text="_", bg=BG, fg=ACCENT,
+        self.tail_readout = tk.Label(expr_row, text="_", bg=BG, fg=ACCENT,
                                      font=("Helvetica", 44, "bold"), padx=2)
         self.tail_readout.pack(side="left")
+
+    def _build_caught_overlay(self):
+        """"Snakes caught so far" counter, place()'d in the window's top
+        right corner independent of the packed title/instructions/grid
+        column -- shown only during catch-the-tail (see asktail/askhead)."""
+        self.caught_overlay = tk.Frame(self.root, bg=BG)
+        tk.Label(self.caught_overlay, image=self._imgs["head"], bg=BG).pack(side="left")
+        self.caught_lbl = tk.Label(self.caught_overlay, text="", bg=BG, fg=TEXT,
+                                   font=("Helvetica", 20, "bold"))
+        self.caught_lbl.pack(side="left", padx=(6, 0))
 
     def _build_board(self):
         wrap = tk.Frame(self.root, bg=BG)
@@ -342,6 +356,7 @@ class SnakeHuntUI:
         sign_txt = "+" if self.sign >= 0 else "-"
         self.tail_readout.configure(text=f"{sign_txt}{self.digits or '_'}")
         self.player_num_lbl.configure(text=str(self.player_place))
+        self.caught_lbl.configure(text=f"x{self.snakes_caught}")
 
     def _confirm(self):
         if self._input_locked or not self.digits:
@@ -353,6 +368,8 @@ class SnakeHuntUI:
             self._answer = int(self.digits)
             if self._answer != self.snake_head:
                 self.wrong_guesses.add(self._answer)
+            else:
+                self.snakes_caught += 1
             # Drop the buddy marker on the guessed tile, right there on the
             # same line, and hold it visible for a beat before the next
             # question (right or wrong) replaces it -- the view never jumps
@@ -383,6 +400,7 @@ class SnakeHuntUI:
         self.sub_lbl.pack_forget()
         self.tail_header.pack()
         self.controls_panel.pack_forget()
+        self.caught_overlay.place(relx=1.0, rely=0.0, x=-16, y=16, anchor="ne")
 
         return self._run_round() or 0
 
@@ -404,6 +422,7 @@ class SnakeHuntUI:
         self.sub_lbl.configure(text="")
         self.sub_lbl.pack()
         self.controls_panel.pack(pady=(6, 20))
+        self.caught_overlay.place_forget()
 
         return self._run_round()
 
