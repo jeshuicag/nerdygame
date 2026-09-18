@@ -1,10 +1,10 @@
 """Front end for the bySlice.py pizza-fraction game.
 
 A single Tkinter window (reused across rounds, matching coin_ui.py,
-grocery_ui.py, and party_ui.py) with two symmetric customer columns --
-left (customer1, the plain-named speak/makeCuts.../onPlate... slot) and
-right (customer2, the "2"-suffixed slot) -- sharing one counter along the
-bottom.
+grocery_ui.py, and party_ui.py) with two symmetric customers, side by
+side -- customer1 (the plain-named speak/makeCuts.../onPlate... slot) on
+the left, customer2 (the "2"-suffixed slot) on the right, each next to
+their own pizza.
 
 Each pizza is rendered as one image: the current slice count's pieces are
 alpha-composited together with PIL into a single merged picture before
@@ -26,9 +26,11 @@ Usage from bySlice.py:
 
     from slice_ui import SliceUI
     ui = SliceUI(image_dir="sliceimages")
+    ui.instruct("Cut the pizza to the right size!")
     ui.speak("I'd like 3/4 pizza")
     slice1, slice2 = ui.makeCuts(denom2)
     slices1, slices2 = ui.onPlate(denom, denom2)
+    ui.customerServed()
 """
 
 import os
@@ -39,7 +41,7 @@ from PIL import Image, ImageTk
 
 from shared_root import get_shared_root
 
-PARTY_IMAGE_DIR = "partyimages"  # counter.png / plate.png.webp are reused from the party game
+PARTY_IMAGE_DIR = "partyimages"  # plate.png.webp is reused from the party game
 
 # bySlice.py wraps a hint-level-2+ target value in this exact escape
 # sequence (a terminal underline code -- meaningless to Tkinter, so it's
@@ -55,12 +57,11 @@ BTN_ACTIVE = "#ffbe4d"
 PLATE_BG = "#f6ead1"
 EMPHASIS_COLOR = "#c0392b"  # matches coin_ui.py's WARN_FG, for consistency
 
-CUSTOMER_PX = 160
-# Sized so the worst common layout -- a double round where both customers
-# need 2 pizzas of 5 slices each -- fits a 1280x800 laptop screen with room
-# to spare for the title/menu bars (measured root request: 1240x740).
+CUSTOMER_PX = 450  # matches SERVER_MAX_H, party_ui.py's server png size
 PIZZA_PX = 200
-COUNTER_MAX_W = 460
+PIZZAS_PER_ROW = 2  # extra pizzas (Add Pizza) wrap to a new row instead of
+                     # growing sideways, so the window's width never
+                     # changes as more are added
 PLATE_PX = 200
 PLATE_PIECE_PX = 55
 # The plate art is a circle that nearly fills its canvas edge-to-edge
@@ -84,6 +85,36 @@ class SliceUI:
         self._closed = False
         self._shown = False
         self._done = tk.IntVar(value=0)
+        # Per-customer, one-time-ever-per-round "Add Pizza" allowance --
+        # set (and reset fresh for the round) in makeCuts, then read by
+        # BOTH makeCuts and onPlate, since a customer only ever gets one
+        # extra pizza total, whichever phase they use it in.
+        self._pizza_added = {"left": False, "right": False}
+        # How many pizzas each customer ended the cut phase with -- reset
+        # fresh in makeCuts, then read by onPlate so the handover phase
+        # starts with exactly that many pizzas already carried over,
+        # instead of resetting back down to one.
+        self._cut_pizza_count = {"left": 1, "right": 1}
+        self._cut_state = {"left": 1, "right": 1}
+        # True only at the start of a brand new round -- makeCuts() resets
+        # the cut state/pizza count/Add Pizza allowance when this is True
+        # (and clears it), so a wrong guess (which makes bySlice.py call
+        # makeCuts() again within the SAME round) doesn't wipe them out.
+        # onPlate() sets this back to True once the round's handover phase
+        # begins, so the next round's first makeCuts() call resets fresh.
+        self._pending_new_round = True
+        # Mirrors _pending_new_round for the handover phase: True only at
+        # the start of a brand new round's handover, so onPlate() creates
+        # the carried-over pizzas and clears the plate just once per round
+        # -- a wrong guess (bySlice.py calling onPlate() again within the
+        # SAME round) leaves the plate and pizzas exactly as the player
+        # left them instead of wiping the plate back to empty. makeCuts()
+        # sets this back to True once a new round's cut phase begins.
+        self._pending_new_handover = True
+        # Cumulative count of customers served this session (one SliceUI
+        # instance lives for one serveCustomers() call) -- bySlice.py calls
+        # customerServed() once per customer whose order comes back correct.
+        self.customers_served = 0
 
         self._load_static_images()
         self._load_slice_images()
@@ -99,10 +130,6 @@ class SliceUI:
         customer2 = Image.open(os.path.join(self.image_dir, "customer2.png")).convert("RGBA")
         customer2.thumbnail((CUSTOMER_PX, CUSTOMER_PX), Image.LANCZOS)
         self._customer2_img = ImageTk.PhotoImage(customer2)
-
-        counter = Image.open(os.path.join(PARTY_IMAGE_DIR, "counter.png")).convert("RGBA")
-        counter.thumbnail((COUNTER_MAX_W, 10_000), Image.LANCZOS)
-        self._counter_img = ImageTk.PhotoImage(counter)
 
         plate = Image.open(os.path.join(PARTY_IMAGE_DIR, "plate.png.webp")).convert("RGBA")
         plate.thumbnail((PLATE_PX, PLATE_PX), Image.LANCZOS)
@@ -166,32 +193,69 @@ class SliceUI:
 
     # ------------------------------------------------------------- build
     def _build(self):
-        row = tk.Frame(self.root, bg=BG)
-        row.pack(fill="both", expand=True, padx=16, pady=10)
+        # Plain instruction text, packed first so it's the very top of the
+        # window -- instruct() just swaps its text, nothing else.
+        self.instruct_label = tk.Label(self.root, text="", bg=BG, fg=TEXT,
+                                       font=("Helvetica", 16, "bold"))
+        self.instruct_label.pack(side="top", pady=(12, 0))
 
-        self.left_zone = tk.Frame(row, bg=BG)
+        # Top-right "customers served" badge. Placed with place() (not
+        # packed) so it floats independently in the corner regardless of
+        # the packed layout beneath it -- same technique as snake_ui.py's
+        # catch-count overlay.
+        served_box = tk.Frame(self.root, bg=BUBBLE_BG,
+                              highlightbackground=BUBBLE_BORDER, highlightthickness=2)
+        self.served_label = tk.Label(served_box, text="Customers Served: 0",
+                                     bg=BUBBLE_BG, fg=TEXT, font=("Helvetica", 13, "bold"),
+                                     padx=10, pady=6)
+        self.served_label.pack()
+        served_box.place(relx=1.0, x=-16, y=16, anchor="ne")
+
+        # Speech bubbles sit in their own row up top, roughly above their
+        # own customer below; left_zone/right_zone (this row only) are what
+        # _set_second_customer_visible toggles for the bubble half of the
+        # second customer.
+        bubbles_row = tk.Frame(self.root, bg=BG)
+        bubbles_row.pack(fill="x", padx=16, pady=(10, 0))
+
+        self.left_zone = tk.Frame(bubbles_row, bg=BG)
         self.left_zone.pack(side="left", fill="both", expand=True)
-        self.right_zone = tk.Frame(row, bg=BG)
+        self.right_zone = tk.Frame(bubbles_row, bg=BG)
         self.right_zone.pack(side="left", fill="both", expand=True)
 
         self.bubble1, self._bubble1_text = self._build_bubble(self.left_zone)
-        self.bubble1.pack(pady=(0, 10))
-        left_row = tk.Frame(self.left_zone, bg=BG)
-        left_row.pack()
-        tk.Label(left_row, image=self._customer1_img, bg=BG).pack(side="left", padx=(0, 16))
-        self.pizza_col1 = tk.Frame(left_row, bg=BG)
-        self.pizza_col1.pack(side="left")
-
+        self.bubble1.pack()
         self.bubble2, self._bubble2_text = self._build_bubble(self.right_zone)
-        self.bubble2.pack(pady=(0, 10))
-        right_row = tk.Frame(self.right_zone, bg=BG)
-        right_row.pack()
-        self.pizza_col2 = tk.Frame(right_row, bg=BG)
-        self.pizza_col2.pack(side="left")
-        tk.Label(right_row, image=self._customer2_img, bg=BG).pack(side="left", padx=(16, 0))
+        self.bubble2.pack()
 
-        self.counter_label = tk.Label(self.root, image=self._counter_img, bg=BG)
-        self.counter_label.pack(side="bottom", pady=(10, 0))
+        # The scene itself: customer1 and customer2 stand on either side of
+        # the pizza/plate area (no overlap/compositing needed here, unlike
+        # party_ui.py's server -- nothing here shares a position), each
+        # next to their own pizzas. anchor="s" keeps everyone on one common
+        # baseline.
+        stage_row = tk.Frame(self.root, bg=BG)
+        stage_row.pack(pady=(10, 0))
+
+        tk.Label(stage_row, image=self._customer1_img, bg=BG).pack(side="left", anchor="s")
+        self.pizza_col1 = tk.Frame(stage_row, bg=BG)
+        self.pizza_col1.pack(side="left", padx=12, anchor="s")
+
+        # customer2 + pizza_col2 are grouped in one frame so
+        # _set_second_customer_visible can show/hide them as a unit.
+        self.customer2_stage_col = tk.Frame(stage_row, bg=BG)
+        self.customer2_stage_col.pack(side="left")
+        self.pizza_col2 = tk.Frame(self.customer2_stage_col, bg=BG)
+        self.pizza_col2.pack(side="left", padx=12, anchor="s")
+        tk.Label(self.customer2_stage_col, image=self._customer2_img, bg=BG).pack(
+            side="left", anchor="s")
+
+        # Holds the dynamic Cut/Hand Over button, in normal top-down flow
+        # right below the stage (so it sits a little below the Add Pizza
+        # buttons at the bottom of each pizza column) -- NOT anchored to
+        # the window's bottom edge the way side="bottom" packing on root
+        # would be, so it stays close to the content above it.
+        self.submit_row = tk.Frame(self.root, bg=BG)
+        self.submit_row.pack(side="top", pady=(18, 10))
 
     def _build_bubble(self, parent):
         box = tk.Frame(parent, bg=BUBBLE_BG, highlightbackground=BUBBLE_BORDER,
@@ -225,8 +289,11 @@ class SliceUI:
         if visible:
             if not self.right_zone.winfo_ismapped():
                 self.right_zone.pack(side="left", fill="both", expand=True)
+            if not self.customer2_stage_col.winfo_ismapped():
+                self.customer2_stage_col.pack(side="left")
         else:
             self.right_zone.pack_forget()
+            self.customer2_stage_col.pack_forget()
 
     def _make_button(self, parent, text, command):
         lbl = tk.Label(parent, text=text, bg=BTN_BG, fg=TEXT, font=("Helvetica", 14, "bold"),
@@ -235,6 +302,24 @@ class SliceUI:
         lbl.bind("<Enter>", lambda e: lbl.configure(bg=BTN_ACTIVE))
         lbl.bind("<Leave>", lambda e: lbl.configure(bg=BTN_BG))
         return lbl
+
+    # ---------------------------------------------------------- instruct
+    def instruct(self, text):
+        """Set the plain instruction text shown at the top of the window."""
+        if self._closed:
+            return
+        self.instruct_label.configure(text=text)
+        self._show()
+
+    def customerServed(self, n=1):
+        """Bump the "Customers Served" badge -- call once per customer
+        whose order came back correct (n=2 if crediting both customers of
+        a double round at once)."""
+        if self._closed:
+            return
+        self.customers_served += n
+        self.served_label.configure(text=f"Customers Served: {self.customers_served}")
+        self._show()
 
     # ------------------------------------------------------------- bubble
     def speak(self, text):
@@ -255,14 +340,27 @@ class SliceUI:
             return (1, None if denom2 is None else 1)
 
         self._set_second_customer_visible(denom2 is not None)
-        self._cut_state = {"left": 1, "right": 1}
+        # Only reset the cut/pizza-count/allowance state on the FIRST
+        # makeCuts() call of a new round -- bySlice.py calls makeCuts()
+        # again on every wrong guess too, and a mistake shouldn't wipe out
+        # cuts or pizzas the player already had right. onPlate() marks
+        # _pending_new_round True once the handover phase for this round
+        # is under way, so the next fresh round's first makeCuts() call
+        # still resets normally.
+        if self._pending_new_round:
+            self._cut_state = {"left": 1, "right": 1}
+            self._cut_pizza_count = {"left": 1, "right": 1}
+            self._pizza_added = {"left": False, "right": False}
+            self._pending_new_round = False
+            # Arm the handover phase to reset fresh too, once it starts.
+            self._pending_new_handover = True
         active = ["left"] + (["right"] if denom2 is not None else [])
 
         for key in active:
             self._render_cut_pizza(key)
 
-        submit = self._make_button(self.root, "Cut", lambda: self._done.set(1))
-        submit.pack(side="bottom", pady=(6, 0))
+        submit = self._make_button(self.submit_row, "Cut", lambda: self._done.set(1))
+        submit.pack()
 
         self._done.set(0)
         self._show()
@@ -283,14 +381,25 @@ class SliceUI:
         for w in col.winfo_children():
             w.destroy()
 
+        # A customer can have 2 pizzas here (after their own "Add Pizza"),
+        # both always showing -- and cut to -- the SAME shared slice count:
+        # clicking any one of them cycles all of that customer's pizzas
+        # together, matching how they're a single combined answer.
         n = self._cut_state[key]
-        lbl = tk.Label(col, image=self._full_pizza_photo[n], bg=BG, bd=0,
-                       highlightthickness=0, cursor="hand2")
-        lbl.pack()
-        lbl.bind("<Button-1>", lambda e, kk=key: self._cycle_pizza(kk))
+        pizzas_row = tk.Frame(col, bg=BG)
+        pizzas_row.pack()
+        for i in range(self._cut_pizza_count[key]):
+            lbl = tk.Label(pizzas_row, image=self._full_pizza_photo[n], bg=BG, bd=0,
+                           highlightthickness=0, cursor="hand2")
+            lbl.grid(row=0, column=i, padx=6)
+            lbl.bind("<Button-1>", lambda e, kk=key: self._cycle_pizza(kk))
 
-        reset_btn = self._make_button(col, "New Pizza", lambda: self._reset_pizza(key))
-        reset_btn.pack(pady=(8, 0))
+        # Same one-time-ever-per-round allowance as handover's Add Pizza
+        # (see _pizza_added) -- own button per customer, gone once used
+        # here or in onPlate, in either order.
+        if not self._pizza_added[key]:
+            add_btn = self._make_button(col, "Add Pizza", lambda: self._add_cut_pizza(key))
+            add_btn.pack(pady=(8, 0))
 
     def _cycle_pizza(self, key):
         if self._closed:
@@ -298,10 +407,11 @@ class SliceUI:
         self._cut_state[key] = (self._cut_state[key] % 5) + 1
         self._render_cut_pizza(key)
 
-    def _reset_pizza(self, key):
-        if self._closed:
+    def _add_cut_pizza(self, key):
+        if self._closed or self._pizza_added[key]:
             return
-        self._cut_state[key] = 1
+        self._pizza_added[key] = True
+        self._cut_pizza_count[key] = 2
         self._render_cut_pizza(key)
 
     # ------------------------------------------------------------- handOver
@@ -310,16 +420,31 @@ class SliceUI:
             return (0, None if denom2 is None else 0)
 
         self._set_second_customer_visible(denom2 is not None)
-        self._handover_denom = {"left": denom, "right": denom2}
+        # The cut phase for this round is over once handover starts -- the
+        # next fresh round's first makeCuts() call should reset normally.
+        self._pending_new_round = True
         active = ["left"] + (["right"] if denom2 is not None else [])
-        self._pizzas = {"left": [], "right": []}
-        self._plate_count = {"left": 0, "right": 0}
 
-        for key in active:
-            self._new_pizza(key)
+        # Only reset the plate and pizzas on the FIRST onPlate() call of a
+        # new round -- bySlice.py calls onPlate() again on every wrong
+        # guess too, and a mistake shouldn't wipe the plate, or the
+        # pizzas, back to empty.
+        if self._pending_new_handover:
+            self._handover_denom = {"left": denom, "right": denom2}
+            self._pizzas = {"left": [], "right": []}
+            self._plate_count = {"left": 0, "right": 0}
+            for key in active:
+                # Carry the cut phase's pizza count forward -- a customer
+                # who cut N pizzas there already has N pizzas here too,
+                # instead of handover resetting back down to one and
+                # making them re-click Add Pizza to get back to where
+                # they left off.
+                for _ in range(self._cut_pizza_count[key]):
+                    self._new_pizza(key)
+            self._pending_new_handover = False
 
-        submit = self._make_button(self.root, "Hand Over", lambda: self._done.set(1))
-        submit.pack(side="bottom", pady=(6, 0))
+        submit = self._make_button(self.submit_row, "Hand Over", lambda: self._done.set(1))
+        submit.pack()
 
         self._done.set(0)
         self._show()
@@ -343,6 +468,15 @@ class SliceUI:
         self._pizzas[key].append(pieces)
         self._render_handover(key)
 
+    def _add_handover_pizza(self, key):
+        # The Add Pizza button's own handler -- gated by the one-time
+        # allowance, unlike the automatic initial _new_pizza(key) calls in
+        # onPlate(), which always create that customer's first pizza.
+        if self._closed or self._pizza_added[key]:
+            return
+        self._pizza_added[key] = True
+        self._new_pizza(key)
+
     def _render_handover(self, key):
         col = self.pizza_col1 if key == "left" else self.pizza_col2
         for w in col.winfo_children():
@@ -352,6 +486,10 @@ class SliceUI:
         pizzas_row = tk.Frame(col, bg=BG)
         pizzas_row.pack()
 
+        # Fixed PIZZAS_PER_ROW columns -- extra pizzas (Add Pizza) wrap to
+        # another row instead of growing pizzas_row sideways, so the
+        # window's width stays constant no matter how many get added.
+        grid_idx = 0
         for pizza_idx, pieces in enumerate(self._pizzas[key]):
             remaining_ks = [p["k"] for p in pieces if not p["on_plate"]]
             if not remaining_ks:
@@ -363,12 +501,18 @@ class SliceUI:
             lbl = tk.Label(pizzas_row, image=composited, bg=BG, bd=0,
                           highlightthickness=0, cursor="hand2")
             lbl.image = composited  # keep a reference alive, or it's GC'd
-            lbl.pack(side="left", padx=6)
+            r, c = divmod(grid_idx, PIZZAS_PER_ROW)
+            lbl.grid(row=r, column=c, padx=6, pady=6)
             lbl.bind("<Button-1>",
                     lambda e, kk=key, pi=pizza_idx: self._pizza_piece_click(kk, pi, e.x, e.y))
+            grid_idx += 1
 
-        add_btn = self._make_button(col, "Add Pizza", lambda: self._new_pizza(key))
-        add_btn.pack(pady=(8, 0))
+        # Same one-time-ever-per-round allowance as the cut phase's Add
+        # Pizza (see _pizza_added) -- gone once used here or during
+        # makeCuts, in either order.
+        if not self._pizza_added[key]:
+            add_btn = self._make_button(col, "Add Pizza", lambda: self._add_handover_pizza(key))
+            add_btn.pack(pady=(8, 0))
 
         plate_box = tk.Frame(col, bg=PLATE_BG, highlightbackground=BUBBLE_BORDER,
                              highlightthickness=2)
