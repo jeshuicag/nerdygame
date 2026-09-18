@@ -42,7 +42,8 @@ def splitCupcakes(num_kids, num_cakes, pkid, rem):
     answer1 = 0
     answer2 = 0
     fails = 0
-
+    
+    # hint leves
     text = f"Pizzas going out! But what's a party without cake? We have {num_cakes} cupcakes and {num_kids} kids. How many cupcakes can I give each kid? Everyone needs the same amount of cupcakes! We can eat leftovers."
     while answer1 != pkid:
         if fails == 1:
@@ -53,7 +54,8 @@ def splitCupcakes(num_kids, num_cakes, pkid, rem):
         if fails >= 2:
             text = f"Why don't you sort them onto these plates, and I'll just bring them out. We have {num_cakes} cupcakes and {num_kids} kids. How many cupcakes does each kid end up with?"
             allow_cupcake_visual = True
-        ## plated indicates whether to show pkid cupcakes on each plate or to let the player add the cupcakes themselves when allow_cupcake_visual is true
+
+        ## input 2 and 3 are for toppings, not relevant here
         ui.display(text, None, None)
         answer1 = ui.quest(allow_cupcake_visual, num_kids, num_cakes)
         fails += 1
@@ -126,13 +128,11 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
     allow_pizza_visual = False
     fails = 0
 
-    ui.server(f"Alright! How much more of those do you need, exactly? Make me a list, I'll do a quick grocery run. I only have a little bit of money, though, so we can't buy more than we need. Remember, there are {kids} kids and each one wants the same order!", tpk, toppings)
+    ui.server(f"Alright! How much more of those do you need, exactly? It's not in my job description, but I'll do a quick grocery run with my own money. Please don't buy more than we need. Remember, there are {kids} kids and each one wants the same order!", tpk, toppings)
 
     while sum(warnings) != 0:
 
         # hint levels
-        # should return how much of each item the player is trying to add.
-        ## prompt should take the indexes in mistakes with values 2 (parallel array to toppings) to ask the player how much more is needed.
         if fails == 1:
             allow_pizza_visual = True
             ui.server(f"Start making the pizzas and let me know how much more of each ingredient you need! Remember, there are {kids} kids and each wants:", tpk, toppings)
@@ -141,8 +141,11 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
         elif fails%2 == 1:
             ui.server(f"You can also make one pizza at a time until you run out of ingredients! Remember, there are {kids} kids, and each one wants the same things on their pizza:", tpk, toppings)
 
+        # should return how much of each item the player is trying to add.
+        ## prompt should take the indexes in mistakes with values 2 (parallel array to toppings) to ask the player how much more is needed.
         added = ui.prompt(kids, tpk, t_inv, mistakes, warnings, toppings, allow_pizza_visual)
 
+        # update mistakes accordingly
         for i, add in enumerate(added):
             if mistakes[i] == 2:
                 if t_inv[i] + add == tpk[i] * kids:
@@ -158,8 +161,8 @@ def howMuchMoreNeeded(kids, tpk, t_inv, mistakes, toppings):
 
     return fails
 
-
-## playParty(3)
+# for testing
+playParty(3)
 
 
     

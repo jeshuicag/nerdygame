@@ -38,7 +38,15 @@ BTN_ACTIVE = "#ffbe4d"
 TOPPING_ICON_PX = 36
 CHECKLIST_ICON_PX = 56
 SERVER_MAX_H = 450
-COUNTER_OVERLAP_FRACTION = 0.5  # counter height, as a fraction of server height
+COUNTER_OVERLAP_FRACTION = 1  # counter height, as a fraction of server height
+COUNTER_Y_SHIFT_FRACTION = 0.4  # extra drop below flush-bottom, as a
+                                  # fraction of server height. The counter's
+                                  # own top edge (in canvas coordinates) ends
+                                  # up at server_h * (1 + shift - overlap) --
+                                  # these two values are set together so that
+                                  # edge stays put (currently 0.65 of the
+                                  # server's height down) while overlap alone
+                                  # controls how tall/wide the counter renders.
 COUNTER_MAX_W_DIM = 500
 SERVER_MAX_H_DIM = 130
 DIM_ALPHA = 90  # out of 255
@@ -53,6 +61,13 @@ CHECKLIST_GRID_COLS = 3
 PIZZA_BASE_PX = 366
 PIZZA_CIRCLE_FRACTION = 0.78
 CUPCAKE_CIRCLE_FRACTION = 0.92
+
+# Tighter than PlacementBoard's own default max board width -- the pizza and
+# cupcake boards render beside left_panel_frame/right_panel_frame (the
+# Reset button, and for pizza the checklist/shopping-list + Submit button),
+# so the board itself needs to leave room for those instead of claiming
+# (up to) the full available width and pushing them outside the window.
+BOARD_MAX_WIDTH_SHARED = 850
 
 
 class PartyUI:
@@ -74,6 +89,8 @@ class PartyUI:
         self._closed = False
         self._shown = False
         self._done = tk.IntVar(value=0)
+        self._dimmed = False  # tracks which backdrop image is showing --
+                              # see _set_backdrop_dim/_fit_to_screen
 
         self._topping_icons = {}
         self._pizza_board = None
@@ -93,6 +110,7 @@ class PartyUI:
 
         server_full = server.copy()
         server_full.thumbnail((10_000, SERVER_MAX_H), Image.LANCZOS)
+        self._server_w = server_full.width  # middle_frame sits just right of this
 
         # Counter height is derived from the server's actual rendered height
         # so the overlap fraction holds regardless of SERVER_MAX_H.
@@ -104,11 +122,45 @@ class PartyUI:
         counter_dim.thumbnail((COUNTER_MAX_W_DIM, 10_000), Image.LANCZOS)
         server_dim = server.copy()
         server_dim.thumbnail((10_000, SERVER_MAX_H_DIM), Image.LANCZOS)
+        # counter_dim's own width cap (COUNTER_MAX_W_DIM) is actually wider
+        # than the full-size server, let alone the much-shorter server_dim --
+        # so middle_frame's dimmed-mode reservation uses server_dim's own
+        # width specifically (matching self._server_w's role below), not the
+        # composite's, or a visual round would reserve MORE space than a
+        # plain round despite showing the smaller backdrop.
+        self._server_w_dim = server_dim.width
 
-        self._counter_img = ImageTk.PhotoImage(counter_full)
-        self._server_img = ImageTk.PhotoImage(server_full)
-        self._counter_img_dim = ImageTk.PhotoImage(self._dim(counter_dim))
-        self._server_img_dim = ImageTk.PhotoImage(self._dim(server_dim))
+        # Stacking these as two separate Tk Labels (the previous approach)
+        # doesn't work: Tkinter paints each Label's own opaque bg wherever
+        # its image is transparent, so the counter's transparent pixels hid
+        # the server underneath instead of showing it through. Merging them
+        # into one PIL image first (real alpha compositing) is the same fix
+        # already used for slice_ui.py's pizza pieces and plate.
+        stage = self._composite_backdrop(
+            server_full, counter_full,
+            y_shift=round(server_full.height * COUNTER_Y_SHIFT_FRACTION))
+        stage_dim = self._dim(self._composite_backdrop(
+            server_dim, counter_dim,
+            y_shift=round(server_dim.height * COUNTER_Y_SHIFT_FRACTION)))
+        self._stage_img = ImageTk.PhotoImage(stage)
+        self._stage_img_dim = ImageTk.PhotoImage(stage_dim)
+
+    @staticmethod
+    def _composite_backdrop(server_img, counter_img, y_shift=0):
+        """Merge the counter onto the server -- centered over the server's
+        own width (clamped so it never overhangs to the left of it), and
+        dropped y_shift pixels below flush-bottom with it (so a bigger
+        counter still reveals more of the server than a merely-bigger,
+        flush one would) -- into one image."""
+        server_w, server_h = server_img.size
+        counter_w, counter_h = counter_img.size
+        counter_left = max(0, (server_w - counter_w) // 2)
+        canvas_w = max(server_w, counter_left + counter_w)
+        canvas_h = max(server_h + y_shift, counter_h)
+        canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        canvas.paste(server_img, (0, 0), server_img)
+        canvas.paste(counter_img, (counter_left, canvas_h - counter_h), counter_img)
+        return canvas
 
     @staticmethod
     def _dim(pil_img, alpha=DIM_ALPHA):
@@ -131,27 +183,26 @@ class PartyUI:
         self.bubble_toppings = tk.Frame(self.bubble_frame, bg=BUBBLE_BG)
         self.bubble_toppings.pack(padx=16, pady=(0, 12), anchor="w")
 
-        # server, counter, and the checklist/shopping-list/board area all
+        # server+counter, and the checklist/shopping-list/board area, all
         # share this one stage (place(), not separate packed sections), so
         # they read as one scene rather than visually distinct blocks --
-        # counter spans the bottom, server sits at the bottom-left (its
-        # upper half peeking above the counter -- see _load_backdrop_images
-        # for why it's taller), and middle_frame starts just to the right
-        # of the server and is free to grow down over the counter if its
-        # content needs the room, since it's always lifted above both.
+        # server and counter are pre-merged into one image (see
+        # _load_backdrop_images/_composite_backdrop -- stacking them as
+        # separate Tk Labels doesn't blend their transparency correctly),
+        # sitting at the bottom-left, and middle_frame starts just to the
+        # right of the server and is free to grow down over the counter if
+        # its content needs the room, since it's always lifted above both.
         self.stage_frame = tk.Frame(self.root, bg=BG)
         self.stage_frame.pack(fill="both", expand=True, padx=20, pady=8)
         self.stage_frame.pack_propagate(False)
 
-        self.server_label = tk.Label(self.stage_frame, image=self._server_img, bg=BG)
-        self.server_label.place(relx=0, rely=1.0, anchor="sw")
-
-        self.counter_label = tk.Label(self.stage_frame, image=self._counter_img, bg=BG)
-        self.counter_label.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
-        self.counter_label.lift()
+        self.stage_backdrop_label = tk.Label(self.stage_frame, image=self._stage_img, bg=BG)
+        self.stage_backdrop_label.place(relx=0, rely=1.0, anchor="sw")
 
         self.middle_frame = tk.Frame(self.stage_frame, bg=BG)
-        self.middle_frame.place(x=self._server_img.width() + 20, y=0)
+        self.middle_frame.place(x=self._server_w + 20, y=0)  # re-placed per
+        # round in _fit_to_screen, which knows whether the dim backdrop is
+        # showing; this initial value just matches the non-dimmed default.
         self.middle_frame.lift()
 
         self._middle_canvas = tk.Canvas(self.middle_frame, bg=BG, highlightthickness=0)
@@ -213,12 +264,12 @@ class PartyUI:
         self.right_panel_frame.pack(side="left", fill="y", padx=(16, 0))
 
     def _set_backdrop_dim(self, dimmed):
-        self.server_label.configure(image=self._server_img_dim if dimmed else self._server_img)
-        self.counter_label.configure(image=self._counter_img_dim if dimmed else self._counter_img)
+        self._dimmed = dimmed
+        self.stage_backdrop_label.configure(
+            image=self._stage_img_dim if dimmed else self._stage_img)
         # Re-assert stacking order every time this is called (every screen
-        # transition): counter above server, and the checklist/shopping-
-        # list/board area above both.
-        self.counter_label.lift()
+        # transition): the checklist/shopping-list/board area stays above
+        # the backdrop.
         self.middle_frame.lift()
 
     def _make_button(self, parent, text, command):
@@ -374,7 +425,8 @@ class PartyUI:
                 base_image_path=os.path.join(self.image_dir, "pizza.png"),
                 items=items, base_count=self._num_kids,
                 initial_inventory=initial_inventory, show_item_switcher=True,
-                base_px=PIZZA_BASE_PX, placement_circle_fraction=PIZZA_CIRCLE_FRACTION)
+                base_px=PIZZA_BASE_PX, placement_circle_fraction=PIZZA_CIRCLE_FRACTION,
+                max_board_width=BOARD_MAX_WIDTH_SHARED)
         return self._pizza_board
 
     def _reset_pizza_board(self, board):
@@ -530,7 +582,8 @@ class PartyUI:
                 base_image_path=os.path.join(self.image_dir, "plate.png.webp"),
                 items=items, base_count=num_kids,
                 initial_inventory={"cupcake": num_cakes}, show_item_switcher=True,
-                placement_circle_fraction=CUPCAKE_CIRCLE_FRACTION)
+                placement_circle_fraction=CUPCAKE_CIRCLE_FRACTION,
+                max_board_width=BOARD_MAX_WIDTH_SHARED)
         return self._cupcake_board
 
     def _render_number_answer(self, parent):
@@ -620,15 +673,39 @@ class PartyUI:
         max_w, max_h = int(sw * 0.95), int(sh * 0.85) - 40
 
         bubble_h = self.bubble_frame.winfo_reqheight()
-        server_w = self._server_img.width()
-        server_h = self._server_img.height()
+        # Reserve space for whichever backdrop image is actually showing
+        # right now, not always the full-size one -- during a pizza/cupcake
+        # visual (self._dimmed) the backdrop shrinks to the small dim
+        # version, and reserving room for the big one anyway (its previous
+        # behavior) wasted most of the window on empty space, squeezing the
+        # visual into whatever was left. backdrop_w/h are the merged
+        # server+counter image's own footprint (see _composite_backdrop --
+        # it can be wider than the server alone if the counter overhangs);
+        # middle_frame's own x-offset uses just the SERVER's own width
+        # (self._server_w / self._server_w_dim), not the composite's, so it
+        # starts just past the server and is free to overlap any counter
+        # overhang -- the dim counter's own width cap happens to be even
+        # wider than the full-size server, so this distinction matters more
+        # in dim mode, not less.
+        if self._dimmed:
+            backdrop_img = self._stage_img_dim
+            reserve_w = self._server_w_dim
+        else:
+            backdrop_img = self._stage_img
+            reserve_w = self._server_w
+        backdrop_w = backdrop_img.width()
+        backdrop_h = backdrop_img.height()
+        self.middle_frame.place(x=reserve_w + 20, y=0)
 
         # Size the canvas to middle_inner's own natural content first (not
         # forced to fill all available space) -- small content (e.g. a
         # short checklist) should stay its natural size, sitting above the
         # counter rather than stretching down to cover it; only content
-        # too big to fit at all should be capped and scroll.
-        available_w = max(200, max_w - server_w - 20)
+        # too big to fit at all should be capped and scroll. Based on
+        # reserve_w (where middle_frame actually starts), not backdrop_w --
+        # middle_frame is free to overlap the rest of the backdrop's own
+        # width (the counter), so that space isn't unavailable to it.
+        available_w = max(200, max_w - reserve_w - 20)
         available_h = max(150, max_h - bubble_h - 40)
         inner_w = self._middle_inner.winfo_reqwidth()
         inner_h = self._middle_inner.winfo_reqheight()
@@ -638,8 +715,8 @@ class PartyUI:
 
         middle_w = self.middle_frame.winfo_reqwidth()
         middle_h = self.middle_frame.winfo_reqheight()
-        stage_w = min(max_w, server_w + 20 + middle_w)
-        stage_h = min(max_h - bubble_h - 20, max(server_h, middle_h))
+        stage_w = min(max_w, backdrop_w + 20 + middle_w)
+        stage_h = min(max_h - bubble_h - 20, max(backdrop_h, middle_h))
         self.stage_frame.configure(width=stage_w, height=stage_h)
         self.root.update_idletasks()
 

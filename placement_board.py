@@ -35,7 +35,6 @@ Usage:
     board.render(switcher_frame, bases_frame)
 """
 
-import math
 import random
 import tkinter as tk
 
@@ -58,12 +57,15 @@ PLACED_PX = 20
 # base_count, by shrinking each base as more of them need to fit per row.
 BOARD_MAX_WIDTH = 1400
 BASE_GRID_PAD = 20  # matches the .grid(padx=10) used per base in _render_bases
+BASE_COLS_MAX = 4  # a row holds up to this many bases before wrapping to
+                    # another row (the middle area scrolls if that still
+                    # doesn't fit everything -- see party_ui.py's _middle_canvas)
 
 
 class PlacementBoard:
     def __init__(self, base_image_path, items, base_count, initial_inventory,
                  show_item_switcher=True, base_px=BASE_PX,
-                 placement_circle_fraction=1.0):
+                 placement_circle_fraction=1.0, max_board_width=BOARD_MAX_WIDTH):
         """placement_circle_fraction is the diameter, as a fraction of the
         (possibly shrunk) base size, of the circular area placed items are
         confined to -- e.g. for a base png whose art is a circle inscribed
@@ -72,6 +74,13 @@ class PlacementBoard:
         placed item's icon on the crust instead of spilling into the
         transparent corners of the square image. 1.0 (the default) treats
         the whole square as safe, matching a base image with no inset.
+
+        max_board_width caps how wide the whole row of bases is allowed to
+        get (each base shrinks to fit) -- pass a tighter value than the
+        default when the board shares horizontal space with something else
+        (e.g. party_ui.py's checklist panel beside it), or that neighbor
+        can get pushed outside the visible window instead of the board
+        simply wrapping to more rows.
         """
         self.items = items  # list of (name, image_path)
         self.base_count = base_count
@@ -81,8 +90,8 @@ class PlacementBoard:
         self.placements = [[] for _ in range(base_count)]
         self.placement_circle_fraction = placement_circle_fraction
 
-        self._base_cols = max(1, math.ceil(math.sqrt(base_count)))
-        fitted_px = (BOARD_MAX_WIDTH // self._base_cols) - BASE_GRID_PAD
+        self._base_cols = max(1, min(BASE_COLS_MAX, base_count))
+        fitted_px = (max_board_width // self._base_cols) - BASE_GRID_PAD
         self.base_px = max(BASE_PX_MIN, min(base_px, fitted_px))
 
         self._switcher_parent = None
