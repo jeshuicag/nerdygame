@@ -379,7 +379,7 @@ class SnakeHuntUI:
         self.digits = ""
         self.wrong_guesses = set()  # starting a new snake -- clear past head guesses
 
-        self.title_lbl.configure(text=f"Catch the tail at {tail}!")
+        self.title_lbl.configure(text=f"Jump to the tail at {tail} using +/-!")
         self.sub_lbl.pack_forget()
         self.tail_header.pack()
         self.controls_panel.pack_forget()
@@ -399,7 +399,7 @@ class SnakeHuntUI:
         self.digits = ""
         self.guess_square = None
 
-        self.title_lbl.configure(text="Where's the head?")
+        self.title_lbl.configure(text="Tell Buddy where the head is!")
         self.tail_header.pack_forget()
         self.sub_lbl.configure(text="")
         self.sub_lbl.pack()

@@ -107,10 +107,8 @@ def checkplace(place, head, tail):
     if place > head:
         return -1
 
-# try:
-#     catchSnake(1, 120, 5)
-# finally:
-#     ui.close()
+# for testing
+# catchSnake(1, 120, 5)
 
 
 

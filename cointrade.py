@@ -1,21 +1,25 @@
 from coin_ui import CoinUI
 
-## 0 copper, 1 iron, 2 gold, 3 diamond (only available according to mechanic level)
-## 0 player bag, 1 other bag, 2 trade area
+## 0 = copper, 1 = iron, 2 = gold, 3 = diamond (only those =< mechlevel are shown)
+## 0 = player bag, 1 = other bag, 2 = trade area
 def coinTrade(curr, amount, add, mechlevel):
     global ui
     ui = CoinUI(image_dir="coinimages")
 
+    # for calculations
     num_transfers = 0
 
+    # backend tracking of 3 locations
     curr_bank = [0,[0, 0, 0, 0]]
     curr_bag = curr
     extras = [0,0,0,0]
+
+    ## if adding, the amount should start in the extras area to be moved
     if add:
         extras = amount
-    else:
-        ui.showGoal(amount, mechlevel)
+    ui.showGoal(amount, add, mechlevel)
 
+    ## if add, check that everythings in our bag. if not, check that extras has the exact payment.
     while (add and (sum(extras) != 0 or sum(curr_bank[1])!=0)) or (not add and extras != amount):
         ## updateDisplayCoins should return selected coins, bank state when player tries to do transfer, destination, and if a trade is being attempted
         info = ui.updateDisplayCoins(curr_bag, extras, curr_bank, mechlevel)
@@ -23,7 +27,7 @@ def coinTrade(curr, amount, add, mechlevel):
         ## int representing coin type being asked for
         curr_bank[0] = info[1]
 
-        ## check if the action is trade rather than transfer
+        ## check if the action is trade rather than transfer (trade has different rules)
         if info[3]:
             curr_bank[1] = tryTrade(curr_bank, mechlevel)
             continue
@@ -33,6 +37,7 @@ def coinTrade(curr, amount, add, mechlevel):
 
         ## bag, extra bag, or bank
         destination = info[2]
+
         dest_amount = [0,0,0,0]
         match destination:
             case 0:
@@ -75,14 +80,14 @@ def coinTrade(curr, amount, add, mechlevel):
     if sum(curr_bank[1]) > 0:
         curr_bag = [x + y for x, y in zip(curr_bag, curr_bank[1])]
         curr_bank[1] = [0,0,0,0]
-        ui.bankToBag(curr_bag, curr_bank[1])
-        
+
+    ui.showFinal(curr_bag, extras, curr_bank)
     ui.warn("You did it!")
     ui.close(2000)
 
     return curr_bag, num_transfers
 
-## figure out how much of each coin type is actually moved
+## figure out how much of each coin type is actually moved (if we select something from our bag but then try to move it to our bag, the coins selected from our bag don't count)
 def validSelected(selected, dest):
     valid_select = [0,1,2]
     valid_select.remove(dest)
@@ -115,24 +120,29 @@ def coinsSelectedFromPlace(selected_coins, dest):
 
     return toreturn
 
+## check if 10 coins in area if trading from smaller coin, or if exactly one coin is available
 def tryTrade(bank, level):
     temp_bank = bank[1]
 
     coinWanted = bank[0]
+    ## 0 is copper, so there's no smaller denomination
     if not coinWanted == 0:
         if temp_bank[coinWanted - 1] == 10:
             temp_bank[coinWanted - 1] = 0
             temp_bank[coinWanted] = 1
             ui.warn("trade successful!")
             return temp_bank
+            
+    ## level is highest current denomination, can't trade up
     if not coinWanted == level:
         if temp_bank[coinWanted + 1] == 1 and sum(temp_bank) == 1:
             temp_bank[coinWanted + 1] = 0
             temp_bank[coinWanted] = 10
             ui.warn("trade successful!")
             return temp_bank
-    ui.warn("The trade center requires exact change")
+    ui.warn("Trade unsuccessful. Please refer to trade guide.")
     return temp_bank
             
-## saved = coinTrade([0,1,0,0], [2,0,0,0], False, 1)
+# for testing
+coinTrade([0,1,0,0], [2,0,0,0], False, 1)
 

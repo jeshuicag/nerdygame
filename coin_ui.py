@@ -112,6 +112,8 @@ class CoinUI:
         self.goal_label = tk.Label(self.root, text="", bg=BG, fg=TEXT,
                                    font=("Helvetica", 18, "bold"), height=1)
         self.goal_label.pack(pady=(14, 0))
+        self.goal_amounts_frame = tk.Frame(self.root, bg=BG)
+        self.goal_amounts_frame.pack(pady=(4, 0))
 
         self.warn_label = tk.Label(self.root, text="", bg=BG, fg=WARN_FG,
                                    font=("Helvetica", 16, "bold"), height=1)
@@ -123,18 +125,18 @@ class CoinUI:
         left = tk.Frame(main, bg=BG)
         left.grid(row=0, column=0, sticky="n")
 
-        self.bag_outline, self.bag_body = self._make_area(left, "Bag")
+        self.bag_outline, self.bag_body = self._make_area(left, "Your Money")
         self.bag_outline.pack(pady=(0, 18))
         self._bind_commit_area(self.bag_outline, self.bag_body, 0)
 
-        self.extras_outline, self.extras_body = self._make_area(left, "Extras")
+        self.extras_outline, self.extras_body = self._make_area(left, "Payment")
         self.extras_outline.pack()
         self._bind_commit_area(self.extras_outline, self.extras_body, 1)
 
-        right = tk.Frame(main, bg=BG)
-        right.grid(row=0, column=1, sticky="n", padx=(30, 0))
+        self.right_col = tk.Frame(main, bg=BG)
+        self.right_col.grid(row=0, column=1, sticky="n", padx=(30, 0))
 
-        self.bank_outline, self.bank_body = self._make_area(right, "Bank")
+        self.bank_outline, self.bank_body = self._make_area(self.right_col, "Trade")
         self.bank_outline.pack()
         self._bind_commit_area(self.bank_outline, self.bank_body, 2)
 
@@ -149,6 +151,15 @@ class CoinUI:
                                               self._on_trade)
         self.trade_button.pack()
 
+        # "1 iron = 10 copper" etc, only shown below the trade center for
+        # equalities where both denominations are unlocked by mechlevel --
+        # a separate box so it (and the whole trade center) can be hidden
+        # together at mechlevel 0, when there's nothing to trade at all.
+        self.trade_guide_outline, self.trade_guide_body = self._make_area(
+            self.right_col, "Trade Guide", title_font_size=16)
+        self.trade_guide_rows = tk.Frame(self.trade_guide_body, bg=BG)
+        self.trade_guide_rows.pack()
+
         self.bag_sections_frame = tk.Frame(self.bag_body, bg=BG)
         self.bag_sections_frame.pack()
         self._bind_commit(self.bag_sections_frame, 0)
@@ -157,11 +168,11 @@ class CoinUI:
         self.extras_sections_frame.pack()
         self._bind_commit(self.extras_sections_frame, 1)
 
-    def _make_area(self, parent, title):
+    def _make_area(self, parent, title, title_font_size=20):
         outline = tk.Frame(parent, bg=BG, highlightbackground=AREA_BORDER,
                            highlightthickness=3, bd=0)
         title_lbl = tk.Label(outline, text=title, bg=BG, fg=TEXT,
-                             font=("Helvetica", 20, "bold"))
+                             font=("Helvetica", title_font_size, "bold"))
         title_lbl.pack(pady=(8, 4), padx=16)
         body = tk.Frame(outline, bg=BG)
         body.pack(padx=16, pady=(0, 14))
@@ -218,18 +229,42 @@ class CoinUI:
                 self._destination if self._destination is not None else 2,
                 self._is_trade)
 
-    def showGoal(self, amount, mechlevel):
+    def showGoal(self, amount, adding, mechlevel):
         if self._closed:
             return
-        parts = [f"{amount[t]} {COIN_NAMES[t]}" for t in range(mechlevel, -1, -1)]
-        text = "Return (" + ", ".join(parts) + ")" if parts else "Return (0)"
-        self.goal_label.configure(text=text)
+        for w in self.goal_amounts_frame.winfo_children():
+            w.destroy()
 
-    def bankToBag(self, curr_bag, bank_counts):
+        if not adding:
+            self.goal_label.configure(text="Pay:")
+            owed = [t for t in range(mechlevel, -1, -1) if amount[t] > 0]
+            if not owed:
+                tk.Label(self.goal_amounts_frame, text="nothing!", bg=BG, fg=TEXT,
+                        font=("Helvetica", 16, "bold")).pack(side="left")
+            for t in owed:
+                row = tk.Frame(self.goal_amounts_frame, bg=BG)
+                row.pack(side="left", padx=8)
+                tk.Label(row, image=self._icons[COIN_NAMES[t]], bg=BG).pack(side="left")
+                tk.Label(row, text=f"x{amount[t]}", bg=BG, fg=TEXT,
+                        font=("Helvetica", 16, "bold")).pack(side="left", padx=(4, 0))
+        else:
+            text = "Move everything into your bag! We only want 9 of each coin at most, or it'll be too heavy!"
+            self.goal_label.configure(text=text)
+
+    def showFinal(self, curr_bag, extras, curr_bank):
+        """Refresh the display with the session's final state -- the last
+        transfer that completed the goal (plus any leftover bank swept
+        back to the bag) -- so the player sees the result of their last
+        move instead of the window sitting on a stale, pre-transfer
+        render while "You did it!" shows and the window counts down to
+        close. Non-blocking."""
         if self._closed:
             return
         self.curr_bag = curr_bag
-        self.curr_bank = [self.curr_bank[0], bank_counts]
+        self.extras = extras
+        self.curr_bank = curr_bank
+        self.bag_selected = {t: set() for t in range(4)}
+        self.extras_selected = {t: set() for t in range(4)}
         self.bank_selected = set()
         self._render_all()
         self.root.update_idletasks()
@@ -303,6 +338,20 @@ class CoinUI:
         return slot_types[:BANK_SLOTS]
 
     def _render_bank(self):
+        # Nothing to trade at mechlevel 0 (only copper is unlocked), so
+        # the whole trade center -- and the guide below it -- is hidden
+        # rather than shown empty. Both are unconditionally forgotten and
+        # (when shown) bank_outline is re-packed before trade_guide_outline
+        # gets a chance to -- pack(before=...) requires its target to
+        # already be managed, so re-adding them in this fixed order each
+        # render is what actually keeps the stacking correct, rather than
+        # only re-packing whichever one just became visible.
+        self.bank_outline.pack_forget()
+        self.trade_guide_outline.pack_forget()
+        if self.mechlevel == 0:
+            return
+        self.bank_outline.pack()
+
         for w in self.bank_slots_frame.winfo_children():
             w.destroy()
 
@@ -335,6 +384,27 @@ class CoinUI:
                             highlightthickness=3, cursor="hand2")
             icon.pack(side="left", padx=6)
             icon.bind("<Button-1>", lambda e, tt=t: self._set_trade_target(tt))
+
+        self._render_trade_guide()
+
+    def _render_trade_guide(self):
+        for w in self.trade_guide_rows.winfo_children():
+            w.destroy()
+        # "1 iron = 10 copper", "1 gold = 10 iron", "1 diamond = 10 gold"
+        # -- only for pairs where BOTH denominations are unlocked yet.
+        for t in range(1, 4):
+            if t > self.mechlevel:
+                continue
+            row = tk.Frame(self.trade_guide_rows, bg=BG)
+            row.pack(pady=3)
+            tk.Label(row, text="1", bg=BG, fg=TEXT, font=("Helvetica", 14, "bold")).pack(side="left")
+            tk.Label(row, image=self._target_icons[COIN_NAMES[t]], bg=BG).pack(side="left", padx=4)
+            tk.Label(row, text="=", bg=BG, fg=TEXT, font=("Helvetica", 14, "bold")).pack(side="left", padx=4)
+            tk.Label(row, text="10", bg=BG, fg=TEXT, font=("Helvetica", 14, "bold")).pack(side="left")
+            tk.Label(row, image=self._target_icons[COIN_NAMES[t - 1]], bg=BG).pack(side="left", padx=4)
+
+        if self.trade_guide_rows.winfo_children():
+            self.trade_guide_outline.pack(pady=(18, 0))
 
     # ------------------------------------------------------------- input
     def _toggle_slot(self, loc, t, i):
