@@ -83,6 +83,8 @@ def coinTrade(curr, amount, add, mechlevel):
 
     ui.showFinal(curr_bag, extras, curr_bank)
     ui.warn("You did it!")
+
+    ## delay so the 'you did it' shows up
     ui.close(2000)
 
     return curr_bag, num_transfers

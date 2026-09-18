@@ -194,6 +194,9 @@ class MainUI:
                 self._done.set(1)
 
             btn.bind("<Button-1>", lambda e: _clicked())
+        elif code == 2:
+            btn = self._make_button(self.button_frame, "Well...next task then!", lambda: self._done.set(1))
+            btn.pack()
         else:
             self._show()
             return

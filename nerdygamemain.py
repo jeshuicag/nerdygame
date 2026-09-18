@@ -114,36 +114,39 @@ def runShop():
 
             ## minus
             case "cointradem":
-                minusamount = [0,0,0,0]
-                mechlevel = mechs[Task.COIN]
-                for i in range(mechlevel + 1):
-                    minusamount[i] = random.randint(1, max(1, coins[i]//2))
-
-                if arrToNum(coins) < arrToNum(minusamount):
-                    minusamount = numToArr(max(1, arrToNum(coins) - 2))
-
-                if mechs[Task.GROCERY][0] == 0:
-                    ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the into payment.", 0)
-                else:
-                    ui.note(f"The shopper needs money groceries! Put {arrToNum(minusamount)} in the extras bag for them.", 0)
-
-                ui.close()
-                coins, trades = cointrade.coinTrade(coins, minusamount, False, mechlevel)
-                ui = MainUI(image_dir="mainimages")
+                if arrToNum(coins) == 0:
+                    ui.note(f"Well...can't pay if there's no money.", 2)
+                    taskqueue.append("cointradep")
                 
-                mechs[Task.COIN] = upgradeCoins(trades)
+                else:
+                    minusamount = numToArr(random.randint(1, max(1, arrToNum(coins) // 8)))
+                    mechlevel = mechs[Task.COIN]
+
+                    if mechs[Task.GROCERY][0] == 0:
+                        ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the payment area.", 0)
+                    else:
+                        ui.note(f"The shopper needs money groceries! Put {arrToNum(minusamount)} in the extras bag for them.", 0)
+
+                    ui.close()
+                    coins, trades = cointrade.coinTrade(coins, minusamount, False, mechlevel)
+                    ui = MainUI(image_dir="mainimages")
+                    
+                    mechs[Task.COIN] = upgradeCoins(trades)
 
             # plus
             case "cointradep":
                 addamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
-                for i in range(mechlevel + 1):
-                    addamount[i] = random.randint(1, max(1, coins[i]//2))
 
-                while arrToNum(coins) + arrToNum(addamount) > 10**(mechlevel + 1):
-                    addamount = numToArr(max(arrToNum(addamount) // 2, 1))
+                addamount = random.randint(1, max(9, arrToNum(coins)//4))
+                while addamount + arrToNum(coins) > 10**(mechlevel + 1):
+                    addamount = addamount // 10
+                addamount = numToArr(addamount)
 
-                if mechs[Task.PARTY] == -1:
+                if arrToNum(addamount) == 0:
+                    ui.note(f"Drat. The coins for the next task are actually actually shiny rocks...", 2)
+                    taskqueue.append("cointradem")
+                elif mechs[Task.PARTY] == -1:
                     ui.note(f"We found some money on the ground! Fit {arrToNum(addamount)} more into our bag.", 0)
                 else:
                     ui.note(f"We made some money! Fit {arrToNum(addamount)} more into our bag.", 0)
