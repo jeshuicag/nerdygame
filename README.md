@@ -13,7 +13,7 @@ run snake hunt: /opt/anaconda3/bin/python3.12 snakehunt.py
 
 Cashier: Copper coin worth 1. Iron worth 10. Gold worth 100. Diamond worth 1000. Use to teach place values. Coin limit is 9, whenever it's hit, make the player do manual conversion from one type of coin to the next to enforce base 10. Occasionally pick up money and have player figure out how to add it to their existing money. Targeted for 1st and 2nd grade, become more complex to include multi-digit numbers as mastery improves.
 
-run snake hunt: /opt/anaconda3/bin/python3.12 cointrade.py
+run coin trade: /opt/anaconda3/bin/python3.12 cointrade.py
 
 Party: number of kids that all need the same amount of food. Use to teach multiplication/ division. Server tells player how many kids there are and how much food each one needs, and player figures out total amount of food. Player has certain amount of cupcakes and needs to figure out how many each kid will have, and also take away remainders. Start with parties of two to teach odd/even, then increase. Targeted to 2/3 grade, become more complex as mastery increases.
 
@@ -45,9 +45,9 @@ Want to do:
 
 - reinforce connection between things (smaller orders lead to less to add in next coin trade activity, using up ingredients means buying more in the next grocer run, etc)
 
-- Make pngs the same size
+- some sort of saving state
 
-- audio
+- audio, since kids can't read until ~ grade 2/3
 
 - update functions in nerdygamemains not consistent with returning values for update or updating inside function, make more consistent
 

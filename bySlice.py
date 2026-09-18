@@ -159,7 +159,7 @@ def handOver(numer, denom, numer2, denom2):
     return hint_level
 
 ## testing
-serveCustomers(3, 180, True)
+## serveCustomers(3, 180, True)
 
     
 
