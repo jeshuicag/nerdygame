@@ -66,7 +66,7 @@ def runShop():
         match taskqueue.pop(0):
             case "grocshop":
                 ## 0 for 'let's go!' or play button, 1 for 'hire someone' button, which switch the text to '+1 employee'
-                ui.note("We need ingredients! I drew up a list for you-- let's go grocery shopping!", 0)
+                ui.note("We need more ingredients! Let's go grocery shopping!", 0)
 
                 ## two levels-- 0 and 1. 0 is player goes shopping. 1 is mastery achieved, grocery shopper hired.
                 level = mechs[Task.GROCERY][0]
@@ -117,13 +117,13 @@ def runShop():
                 minusamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
                 for i in range(mechlevel + 1):
-                    minusamount[i] = random.randint(1, coins[i]//2)
+                    minusamount[i] = random.randint(1, max(1, coins[i]//2))
 
                 if arrToNum(coins) < arrToNum(minusamount):
                     minusamount = max(1, arrToNum(coins) - 2)
 
                 if mechs[Task.GROCERY][0] == 0:
-                    ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the extras bag.", 0)
+                    ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the into payment.", 0)
                 else:
                     ui.note(f"The shopper needs money groceries! Put {arrToNum(minusamount)} in the extras bag for them.", 0)
 
@@ -138,7 +138,7 @@ def runShop():
                 addamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
                 for i in range(mechlevel + 1):
-                    addamount[i] = random.randint(0, coins[i]//2)
+                    addamount[i] = random.randint(1, max(1, coins[i]//2))
 
                 while arrToNum(coins) + arrToNum(addamount) > 10**(mechlevel + 1):
                     addamount = numToArr(max(arrToNum(addamount) // 2, 1))
