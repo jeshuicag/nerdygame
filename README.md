@@ -27,7 +27,7 @@ Once mastery is reached, player can hire 'employees' to automate certain skills 
 
 run overall: /opt/anaconda3/bin/python3.12 nerdygamemain.py
 
-Want to do:
+Want to do if had more time:
 - make cleaner backend/ frontend distinction. Front end should be simpler, backend should handle all logic. Some visual implementations that don't exist without a front end need extra logic and are currently implemented in the front end completely. Move it over to the backend. cointrade.py is the best example of a clean front end/ back end split.
 
 - overall make the visuals more appealing/ thematic
@@ -40,14 +40,15 @@ Want to do:
 
 - employee system
 
-- more advanced levels (multi-digit multiplication, bigger fractions)
-    - currently, level difference just means hiring an employee (AKA mastery achieved)
+- more advanced levels (multi-digit multiplication, bigger fractions, bigger num_kids)
+    - currently, most level difference just means hiring an employee (AKA mastery achieved)
 
 - reinforce connection between things (smaller orders lead to less to add in next coin trade activity, using up ingredients means buying more in the next grocer run, etc)
 
-- some sort of saving state
+- some sort of save state
 
 - audio, since kids can't read until ~ grade 2/3
 
-- update functions in nerdygamemains not consistent with returning values for update or updating inside function, make more consistent
+- update functions in nerdygamemains not consistent with each other (some return values for update while some updating inside function)-- make more consistent
 
+- testing by actual kids and more thorough testing for edge cases

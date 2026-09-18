@@ -120,7 +120,7 @@ def runShop():
                     minusamount[i] = random.randint(1, max(1, coins[i]//2))
 
                 if arrToNum(coins) < arrToNum(minusamount):
-                    minusamount = max(1, arrToNum(coins) - 2)
+                    minusamount = numToArr(max(1, arrToNum(coins) - 2))
 
                 if mechs[Task.GROCERY][0] == 0:
                     ui.note(f"We have to pay for groceries! Put {arrToNum(minusamount)} in the into payment.", 0)

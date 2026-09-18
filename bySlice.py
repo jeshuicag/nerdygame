@@ -99,7 +99,7 @@ def cutPizza(numer, denom, numer2, denom2):
                 ui.speak2("Perfect!")
                 track2 = None
         else:
-            slice2 = denom
+            slice2 = denom2
 
         hint_level += 1
 
@@ -152,7 +152,7 @@ def handOver(numer, denom, numer2, denom2):
                 track2 = None
                 ui.customerServed()
         else:
-            slices2 = numer
+            slices2 = numer2
 
         hint_level += 1
     
