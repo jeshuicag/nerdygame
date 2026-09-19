@@ -138,9 +138,9 @@ def runShop():
                 addamount = [0,0,0,0]
                 mechlevel = mechs[Task.COIN]
 
-                addamount = random.randint(1, max(9, arrToNum(coins)//4))
+                addamount = random.randint(1, max(1, arrToNum(coins)//2))
                 while addamount + arrToNum(coins) > 10**(mechlevel + 1):
-                    addamount = addamount // 10
+                    addamount = addamount // 2
                 addamount = numToArr(addamount)
 
                 if arrToNum(addamount) == 0:

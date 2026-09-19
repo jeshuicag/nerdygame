@@ -60,7 +60,7 @@ def splitCupcakes(num_kids, num_cakes, pkid, rem):
         answer1 = ui.quest(allow_cupcake_visual, num_kids, num_cakes)
         fails += 1
 
-    text = f"{answer1} per kid...how many does that leave for us to eat?"
+    text = f"{num_cakes} cupcakes, {answer1} per kid, and {num_kids} kids...how many does that leave for us to eat?"
     rem_fails = 0
 
     while answer2 != rem:

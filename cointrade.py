@@ -146,5 +146,5 @@ def tryTrade(bank, level):
     return temp_bank
             
 # for testing
-# coinTrade([0,1,0,0], [2,0,0,0], False, 1)
+## coinTrade([8,1,7,1], [2,0,3,0], True, 3)
 

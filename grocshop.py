@@ -73,4 +73,4 @@ def change_mistake_level(new_level):
 
 
 ## for testing
-# go_shopping(10, 120)
+##go_shopping(10, 120)
